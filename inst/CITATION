@@ -1,0 +1,24 @@
+citHeader("To cite package 'TripleR' in publications use:")
+
+## R >= 2.8.0 passes package metadata to citation().
+if(!exists("meta") || is.null(meta)) meta <- packageDescription("TripleR")
+year <- sub("-.*", "", meta$Date)
+#note <- sprintf("R package version %s", meta$Version)
+title.bibtex <- paste("{TripleR}: A package for round robin analyses using R (version ",meta$Version,")", sep="")
+title <- paste("TripleR: A package for round robin analyses using R (version ",meta$Version,").", sep="")
+
+    
+citEntry(entry = "Manual",
+  title = title.bibtex,
+  author = personList(as.person("Stefan C. Schmukle"),
+                  as.person("Felix D. Schoenbrodt"),
+                  as.person("Mitja D. Back")),
+  year = year,
+  url = "http://www.persoc.net",
+
+  textVersion =
+  paste("Schmukle, S. C., Schoenbrodt, F.D., & Back, M. D.",
+       sprintf("(%s).", year),
+       title,
+        "Retrieved at http://www.persoc.net.")
+)

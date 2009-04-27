@@ -1,0 +1,4 @@
+# only the top level function RR and its print method is exported
+
+export(RR)
+S3method(print, RR)
