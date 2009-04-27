@@ -13,9 +13,9 @@
 #-- Skinning variables
 #------------------------------------
 
-# Labels ‘actor-partner’
+# Labels actor-partner
 unilabels_b <- c("actor variance", "partner variance", "relationship variance", "error variance", "actor-partner covariance", "relationship covariance")
-# Labels ´target-perceiver'
+# Labels target-perceiver
 unilabels_p <- c("perceiver variance", "target variance", "relationship variance", "error variance", "perceiver-target covariance", "relationship covariance")
 
 unilabels2 <- c("estimate", "standardized", "se", "t.value")
@@ -400,8 +400,7 @@ if (!(analysis %in% c("latent", "manifest"))) stop("Parameter 'analysis' must ei
 # Here the default print method for RR-objects gets overwritten, so that 
 # the information in the RR-class is displayed in a convenient way
 print.RR <- function(x, ..., measure1="behavior", measure2="behavior") {
-	cat(paste("Round-Robin object ('RR'), calculated by Triple-R\n"))
-	cat("-->", x$anal.type, ":\n\n")
+	print(paste("Round-Robin object ('RR'), calculated by Triple-R\n-->", x$anal.type, ":\n\n"))
 	
 	# bivariate case
 	if (length(x$univariate) == 2) {
@@ -433,11 +432,11 @@ print.RR <- function(x, ..., measure1="behavior", measure2="behavior") {
 			rownames(uni[[2]]) <- unilabels_b_meta2
 			rownames(bi) <- bilabels_meta
 		}
-		cat("Univariate analyses, variable 1:\n\n")
+		print("Univariate analyses, variable 1:\n\n")
 		print(uni[[1]])
-		cat("\n\nUnivariate analyses, variable 2:\n\n")
+		print("\n\nUnivariate analyses, variable 2:\n\n")
 		print(uni[[2]])
-		cat("\n\nBivariate analyses:\n\n")
+		print("\n\nBivariate analyses:\n\n")
 		print(bi)
 		
 	} else
@@ -448,8 +447,7 @@ print.RR <- function(x, ..., measure1="behavior", measure2="behavior") {
 		if (measure1 == "behavior") rownames(uni) <- unilabels_b
 		if (measure1 == "perception") rownames(uni) <- unilabels_p
 		if (measure1 == "metaperception") {
-			print("Warning: the current RR-object only consists of one RRMatrix. Labels for metaperception are only provided when two RRMatrices are calculated.")
-			cat("\n\n")
+			print("Warning: the current RR-object only consists of one RRMatrix. Labels for metaperception are only provided when two RRMatrices are calculated.\n\n")
 			rownames(uni) <- unilabels_b
 		}
 		print(uni)
