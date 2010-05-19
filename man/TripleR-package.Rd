@@ -4,21 +4,25 @@
 \docType{package}
 \title{Triple R: A Package for Round-Robin Analyses Using R}
 \description{
-The function RR performs Social Relation Model (SRM) analyses based on a single round-robin group. These analyses are either based on one manifest variable, one latent construct measured by two manifest variables, two manifest variables and their bivariate relations, or two latent constructs each measured by two manifest variables.
+Social Relation Model (SRM) analyses for single or multiple round-robin groups are performed. These analyses are either based on one manifest variable, one latent construct measured by two manifest variables, two manifest variables and their bivariate relations, or bivariate relations between two latent constructs each measured by two manifest variables. Within-group t-tests for variance components are provided for single group, between-groups t-tests for multiple groups. Preliminary handling for missing values is provided.
 }
 \details{
 \tabular{ll}{
 Package: \tab TripleR\cr
 Type: \tab Package\cr
-Version: \tab 0.1.s1\cr
-Date: \tab 2009-04-27\cr
+Version: \tab 0.4\cr
+Date: \tab 2010-07-15\cr
 License: \tab GPL (>=2)\cr
 LazyLoad: \tab yes\cr
 }
 
-For further information of usage see \code{\link{RR}}
+For further information of usage see \code{\link{RR}} or the built in pdf document `How to use TripleR'. You can open this document either by typing \code{vignette("TripleR")} into the \code{R} prompt, or you can browse all included vignettes by opening the index of the package documentation (scroll down to the very end of this page and click on `Index'; than click on `Overview of user guides and package vignettes')
+
+If you use this package in your research, please cite it as:
+Schmukle, S. C., Schönbrodt, F.D., & Back, M. D. (2010). TripleR: A package for round robin analyses using R (version 0.3.6). Retrieved from http://www.persoc.net/ToolBox/TripleR.
+
 }
-\author{Stefan C. Schmukle, Felix D. Schoenbrodt & Mitja D. Back
+\author{Stefan C. Schmukle, Felix D. Schönbrodt & Mitja D. Back
 }
 \references{
 Back, M. D., Schmukle, S. C., & Egloff, B. (2009). From first sight to friendship: A longitudinal social relations analysis of stability and change in interpersonal attraction. Manuscript submitted for publication. 

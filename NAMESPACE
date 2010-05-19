@@ -1,4 +1,14 @@
-# only the top level function RR and its print method is exported
+import(reshape)
+import(plyr)
 
-export(RR)
+export(RR, plot_missings, long2matrix, matrix2long, getEffects)
+
+S3method(print, uni)
 S3method(print, RR)
+S3method(print, RRuni)
+S3method(print, RRmulti)
+S3method(print, RRbi)
+
+S3method(plot, RRbi)
+S3method(plot, RRuni)
+S3method(plot, RRmulti)

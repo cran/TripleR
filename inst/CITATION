@@ -11,14 +11,14 @@ title <- paste("TripleR: A package for round robin analyses using R (version ",m
 citEntry(entry = "Manual",
   title = title.bibtex,
   author = personList(as.person("Stefan C. Schmukle"),
-                  as.person("Felix D. Schoenbrodt"),
+                  as.person("Felix D. Schönbrodt"),
                   as.person("Mitja D. Back")),
   year = year,
-  url = "http://www.persoc.net",
+  url = "http://www.persoc.net/ToolBox/TripleR",
 
   textVersion =
-  paste("Schmukle, S. C., Schoenbrodt, F.D., & Back, M. D.",
+  paste("Schmukle, S. C., Schönbrodt, F.D., & Back, M. D.",
        sprintf("(%s).", year),
        title,
-        "Retrieved at http://www.persoc.net.")
+        "Retrieved from http://www.persoc.net/ToolBox/TripleR.")
 )
