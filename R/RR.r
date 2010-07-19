@@ -6,7 +6,12 @@
 
 
 localOptions <- new.env(parent=globalenv())
-localOptions$suffixes <- c(".a", ".p")
+localOptions$suffixes <- c(".a", ".p", ".s")
+localOptions$style <- "behavior"
+
+role <- list()
+role$behavior <- c("Actor", "Partner", "Relationship")
+role$perception <- c("Perceiver", "Target", "Relationship")
 
 # Labels actor-partner
 unilabels_b <- c("actor variance", "partner variance", "relationship variance", "error variance", "actor-partner covariance", "relationship covariance")
@@ -32,6 +37,24 @@ bilabels_pb <- c("perceiver-actor covariance","target-partner covariance",
 
 bilabels_meta <- c("Perceiver assumed reciprocity","Generalized assumed reciprocity",
 "Perceiver meta-accuracy", "Generalized meta-accuracy", "Dyadic assumed reciprocity", "Dyadic meta-accuracy")
+
+
+# set options for printing reults etc.
+# style = c("behavior", "perception")
+RR.style <- function(style="behavior", suffixes=NA) {
+	localOptions$style <- style <- match.arg(style, c("behavior", "perception"))
+	
+	if (is.na(suffixes)) {
+		if (style=="behavior") {
+			localOptions$suffixes <- c(".a", ".p", ".s")
+		} else 
+		if (style=="perception") {
+			localOptions$suffixes <- c(".p", ".t", ".s")
+		}
+	} else {
+		localOptions$suffixes <- suffixes
+	}
+}
 
 
 # corrects values < -1 to -1 and values > 1 to 1
@@ -233,23 +256,31 @@ RR.effects <- function(RRMatrix, name=NA) {
 	
 	# return effects also in long format
 	if (!is.null(attr(RRMatrix, "self.ratings"))) {
-		eff <- data.frame(id = rownames(RRMatrix), actor=a, partner=b, self.raw=attr(RRMatrix, "self.ratings"))
+		eff <- data.frame(id = rownames(RRMatrix), actor=a, partner=b, self=attr(RRMatrix, "self.ratings")-mpp)
+		if (!is.null(name)) {colnames(eff)[2:4] <- paste(name, localOptions$suffixes, sep="")}
 	} else {
 		eff <- data.frame(id = rownames(RRMatrix), actor=a, partner=b)
+		if (!is.null(name)) {colnames(eff)[2:3] <- paste(name, localOptions$suffixes[1:2], sep="")}
 	}
-	if (!is.null(name)) {
-		colnames(eff)[2:3] <- paste(name, localOptions$suffixes, sep="")
-	}
+	
 	
 	
 	effRel <- melt(c)
+	effRel <- effRel[apply(effRel, 1, function(x) {x[1] != x[2]}),]
 	colnames(effRel) <- c("actor.id", "partner.id","relationship")
+	effRel$dyad <- apply(effRel, 1, function(x) paste(as.character(min(x[1], x[2])), as.character(max(x[1], x[2])), sep="_"))
+	effRel <- effRel[,c(1,2,4,3)]
+	effRel <- effRel[order(effRel$dyad),]
 	
 	eff.gm <- eff
-	eff.gm[,2:3] <- eff.gm[,2:3]+mpp
+	if (!is.null(attr(RRMatrix, "self.ratings"))) {
+		eff.gm[,2:4] <- eff.gm[,2:4]+mpp
+	} else {
+		eff.gm[,2:3] <- eff.gm[,2:3]+mpp
+	}
 	
 	if (!is.null(attr(RRMatrix, "self.ratings"))) {
-		return(list(actor = a, partner = b, relationship = c, eff=eff, effRel=effRel, eff.gm=eff.gm, self=attr(RRMatrix, "self.ratings")))
+		return(list(actor = a, partner = b, relationship = c, eff=eff, effRel=effRel, eff.gm=eff.gm, self=attr(RRMatrix, "self.ratings")-mpp))
 	} else {
 		return(list(actor = a, partner = b, relationship = c, eff=eff, effRel=effRel, eff.gm=eff.gm))
 		}
@@ -259,7 +290,7 @@ RR.effects <- function(RRMatrix, name=NA) {
 
 # calculates variance components from a single RR-Matrix
 # na.rm = TRUE / FALSE / "impute" (<- not implemented yet)
-RR.univariate <- function(RRMatrix, na.rm=FALSE, verbose=TRUE) {
+RR.univariate <- function(RRMatrix, na.rm=FALSE, verbose=TRUE, corr.fac=NA) {
 	
 	if (is.null(RRMatrix)) return();
 	
@@ -287,8 +318,13 @@ RR.univariate <- function(RRMatrix, na.rm=FALSE, verbose=TRUE) {
 	d <- eff$relationship - t(eff$relationship)
 	
 	if (na.rm==TRUE) {
-		corr.fac <- (n*(n-1)) / (n*(n-1) - sum(is.na(e)) + n)
-		#corr.fac <- 1
+		
+		if (is.na(corr.fac)) {
+			corr.fac <- (n*(n-1)) / (n*(n-1) - sum(is.na(e)) + n)
+		} else {
+			corr.fac <- eval(parse(text=corr.fac))
+		}
+		
 		D <- (sum(e^2, na.rm=TRUE) * corr.fac)  / (((n-1)*(n-2)/2)-1)
 		E <- ((sum(d^2,na.rm=TRUE)/2)  * corr.fac) / ((n-1)*(n-2))
 	} else {
@@ -371,8 +407,8 @@ RR.univariate <- function(RRMatrix, na.rm=FALSE, verbose=TRUE) {
 	res <- list(effects = eff$eff, effectsRel = eff$effRel, effects.gm = eff$eff.gm, varComp = univariate, relMat.av=e, relMat.diff=d, group.size=n, latent=FALSE, anal.type="Univariate analysis of one round robin variable")
 	class(res) <- "RRuni"
 	attr(res, "group.size") <- n
+	attr(res, "varname") <- attr(RRMatrix, "varname")
 	return(res)
-	
 }
 
 
@@ -381,6 +417,7 @@ RR.univariate <- function(RRMatrix, na.rm=FALSE, verbose=TRUE) {
 # latent = TRUE: both matrices are treated as two measures for one underlying construct
 # latent = FALSE: both matrices are treated as independent variables
 # noCorrection = TRUE: even if univariate estimates are negative, bivariate covariances are NOT set to NA (this is necessary, when the manifest bivariat results are transferred into the bivariate latent analysis, see TAG1)
+
 RR.bivariate <- function(RRMatrix1, RRMatrix2, analysis="manifest", na.rm=FALSE, verbose=TRUE, noCorrection=FALSE) {
 	
 	if (!(analysis %in% c("latent", "manifest"))) stop("Parameter 'analysis' must either be 'latent' or 'manifest'. Calculations aborted.")
@@ -411,12 +448,12 @@ RR.bivariate <- function(RRMatrix1, RRMatrix2, analysis="manifest", na.rm=FALSE,
 	#standardized <- clamp(raf,rbg,rag,rbf,rch,rchs)
 	w <- getOption("warn")
 	options(warn=-1)
-		raf <-  saf/sqrt(varComp.1[1])*sqrt(varComp.2[1]) # bivariate correlations
-		rbg <-  sbg/sqrt(varComp.1[2])*sqrt(varComp.2[2])
-		rag <-  sag/sqrt(varComp.1[1])*sqrt(varComp.2[2])
-		rbf <-  sbf/sqrt(varComp.1[2])*sqrt(varComp.2[1])
-		rch <-  sch/sqrt(varComp.1[3])*sqrt(varComp.2[3])
-		rchs <- schs/sqrt(varComp.1[3])*sqrt(varComp.2[3])
+		raf <-  saf/(sqrt(varComp.1[1])*sqrt(varComp.2[1])) # bivariate correlations
+		rbg <-  sbg/(sqrt(varComp.1[2])*sqrt(varComp.2[2]))
+		rag <-  sag/(sqrt(varComp.1[1])*sqrt(varComp.2[2]))
+		rbf <-  sbf/(sqrt(varComp.1[2])*sqrt(varComp.2[1]))
+		rch <-  sch/(sqrt(varComp.1[3])*sqrt(varComp.2[3]))
+		rchs <- schs/(sqrt(varComp.1[3])*sqrt(varComp.2[3]))
 	options(warn=w)
 	
 	
@@ -425,8 +462,8 @@ RR.bivariate <- function(RRMatrix1, RRMatrix2, analysis="manifest", na.rm=FALSE,
 		stabtarvar1 <- sbg
 		stabrelvar1 <- sch
 		
-    stabapcov1 <- (sag + sbf)/2		
-    stabdycov1 <- schs
+    	stabapcov1 <- (sag + sbf)/2		
+    	stabdycov1 <- schs
 		unstabper1 <- (varComp.1[1] + varComp.2[1])/2 - saf
 		unstabtar1 <- (varComp.1[2] + varComp.2[2])/2 - sbg
 		unstabrel1 <- (varComp.1[3] + varComp.2[3]) / 2 - sch
@@ -550,10 +587,11 @@ if (analysis=="manifest") {
 {
 	# Result matrix for latent analysis 
 
-	unstand<-c(stabpervar1,stabtarvar1,stabrelvar1,unstable1,stabapcov1,stabdycov1)
-	stand<-  clamp(stabperr1, stabtarr1, stabrelr1, unstabler1,stabapcor1,stabdycor1)
+	unstand <- c(stabpervar1,stabtarvar1,stabrelvar1,unstable1,stabapcov1,stabdycov1)
+	stand <- clamp(stabperr1, stabtarr1, stabrelr1, unstabler1,stabapcor1,stabdycor1)
 	stand[is.infinite(stand)] <- NaN
-	se<-     c(sestabpervar1,sestabtarvar1,sestabrelvar1,NA,NA,NA)
+	
+	se <- c(sestabpervar1,sestabtarvar1,sestabrelvar1,NA,NA,NA)
 	tvalues<-c(tstabpervar1,tstabtarvar1,tstabrelvar1,NA,NA,NA)
 	pvalues <- dt(tvalues, n-1)
 	pvalues[4:5] <- pvalues[4:5]*2
@@ -582,13 +620,23 @@ if (analysis=="manifest") {
 	
 	
 	eff2 <- merge(RR.1$effects, RR.2$effects, by=c("id"))
-	eff2$actor <- apply(eff2[,c(2,4)], 1, mean, na.rm=TRUE)
-	eff2$partner <- apply(eff2[,c(3,5)], 1, mean, na.rm=TRUE)
+	
+	eff2$actor <- apply(eff2[,grep(localOptions$suffixes[1], colnames(eff2))], 1, mean, na.rm=TRUE)
+	eff2$partner <- apply(eff2[,grep(localOptions$suffixes[2], colnames(eff2))], 1, mean, na.rm=TRUE)
+	
+	# self ratings vorhanden?
+	if (ncol(RR.1$effects)==4) {
+		eff2$self <- apply(eff2[,grep(localOptions$suffixes[3], colnames(eff2))], 1, mean, na.rm=TRUE)
+	}
 	
 	effRel2 <- merge(RR.1$effectsRel, RR.2$effectsRel, by=c("actor.id", "partner.id"))
 	effRel2$relationship <- apply(effRel2[,c("relationship.x", "relationship.y")], 1, mean, na.rm=TRUE)
 	
-	eff <- eff2[,c("id", "actor", "partner")]
+	if (ncol(RR.1$effects)==4) {
+		eff <- eff2[,c("id", "actor", "partner", "self")]
+	} else {
+		eff <- eff2[,c("id", "actor", "partner")]
+	}
 	colnames(eff) <- colnames(RR.1$effects)
 		
 	effRel <- effRel2[,c("actor.id", "partner.id", "relationship")]
@@ -599,6 +647,7 @@ if (analysis=="manifest") {
 	
 	res <- list(effects = eff, effectsRel=effRel, varComp=results, unstabdycov1=unstabdycov1, unstabper1=unstabper1, unstabtar1=unstabtar1, unstabrel1=unstabrel1, unstable.raw=unstable.raw, latent=TRUE, anal.type="Latent construct analysis of one construct measured by two round robin variables")
 	attr(res, "group.size") <- n
+	attr(res, "varname") <- paste(attr(RR.1, "varname"), attr(RR.2, "varname"), sep="/")
 	class(res) <- "RRuni"
 }
 
@@ -620,17 +669,11 @@ ifg <- function(g) {
 
 
 # Wrapper function: depending on parameters, different results are calculated:
-RR <- function(formula, data, na.rm=FALSE, verbose=TRUE, suffixes=NULL, g.id=NULL) {
+RR <- function(formula, data, na.rm=FALSE, verbose=TRUE, g.id=NULL) {
 
 # set default
 analysis <- "manifest"
 RRMatrix2 <- RRMatrix3 <- RRMatrix4 <- NULL
-
-# save suffixes in local environment (by doing so, these variables do not have to be passed in each function call)
-if (!is.null(suffixes)) {
-	localOptions$suffixes <- suffixes
-}
-
 
 # transform long format (formula) to quadratic matrices
 #print("Long format is converted in quadratic matrices ...")
@@ -1109,8 +1152,10 @@ RR.multi.uni <- function(formule, data, na.rm=FALSE, verbose=TRUE) {
 
 
 # mode = c("scatter", "bar")
-plot.RRmulti <- function(x, ..., measure="behavior", geom="scatter", conf.level=0.95, connect=FALSE) {
+plot.RRmulti <- function(x, ..., measure=NA, geom="scatter", conf.level=0.95, connect=FALSE) {
 	RRm <- x
+	
+	if (is.na(measure)) measure <- localOptions$style
 	library(ggplot2)
 	
 	mode <- ifelse(length(RRm$univariate)==2,"bi","uni")
@@ -1199,9 +1244,11 @@ plot.RRbi <- function(x, ...) {
 	plot.RRuni(x, ...)
 }
 
-plot.RRuni <- function(x, ..., measure="behavior", geom="bar") {
+plot.RRuni <- function(x, ..., measure=NA, geom="bar") {
 	
 	RRu <- x
+	if (is.na(measure)) measure <- localOptions$style
+	
 	library(ggplot2)
 	
 	if (measure=="behavior") {lab <- unilabels_b}
@@ -1323,14 +1370,14 @@ RR.multi <- function(formule, data, na.rm=FALSE, verbose=TRUE) {
 
 
 
-getEffects <- function(formule, data, varlist, by=NA, suffixes=c(".a", ".p"), na.rm=TRUE) {
+getEffects <- function(formule, data, varlist, by=NA, na.rm=TRUE) {
 
 	# run a RR analysis for each variable and store results in a list
 	res_list <- list()
 	for (v in 1:length(varlist)) {
 		print(paste("Calculate:",varlist[v]))
 		f1 <- formula(paste(varlist[v], paste(as.character(formule), collapse="")))
-		RR1 <- RR(f1, data=data, na.rm=na.rm, verbose=FALSE, suffixes=suffixes)
+		RR1 <- RR(f1, data=data, na.rm=na.rm, verbose=FALSE)
 		res_list <- c(res_list, list(RR1$effects))
 	}
 
@@ -1365,30 +1412,40 @@ print.RRbi <- function(x, ...) {
 # x muss hier direkt auf das univariate-Objekt verweisen
 print.uni <- function(x, ..., measure="behavior", digits=3, r.names=NULL) {
 	uni <- round(x$varComp[,2:ncol(x$varComp)], digits)
-	if (measure == "behavior") rownames(uni) <- unilabels_b
-	if (measure == "perception") rownames(uni) <- unilabels_p
-	if (measure == "metaperception") {
-		warning("Warning: the current RR-object only consists of a single variable. Labels for metaperception are only provided when two variables are specified.")
-		rownames(uni) <- unilabels_b
-	}
 	
-	if (!is.null(r.names)) {rownames(uni) <- r.names}
+	if (!is.null(r.names)) {rownames(uni) <- r.names} else {
+		if (measure == "behavior") rownames(uni) <- unilabels_b
+		if (measure == "perception") rownames(uni) <- unilabels_p
+		if (measure == "metaperception") {
+			warning("Warning: the current RR-object only consists of a single variable. Labels for metaperception are only provided when two variables are specified.")
+			rownames(uni) <- unilabels_b
+		}
+	}
 	
 	print(uni)
 	
-	if (!is.null(x$effects[,2])) print(paste("Actor effect reliability:",round(attr(x$effects[,2], "reliability"), 3)))
-	if (!is.null(x$effects[,3])) print(paste("Partner effect reliability:",round(attr(x$effects[,3], "reliability"), 3)))
-	if (!is.null(x$effects$relationship)) print(paste("Relationship effect reliability:",round(attr(x$effects$relationship, "reliability"), 3)))
+	# Actor effect reliability
+	if (!is.null(x$effects[,2])) print(paste(role[[localOptions$style]][1], "effect reliability:",round(attr(x$effects[,2], "reliability"), 3)))
 	
-	if (any(uni[1:2,2]<0.10) | any(is.na(uni[1:2,2]))) print(paste("Warning:",rownames(uni)[5],"should NOT be interpreted if standardized actor or partner variance is < 10%!"))
-	if (uni[3,2]<0.10 | is.na(uni[3,2])) print(paste("Warning:",rownames(uni)[6],"should NOT be interpreted if standardized relationship variance is < 10%!"))
+	# Partner effect reliability
+	if (!is.null(x$effects[,3])) print(paste(role[[localOptions$style]][2], "effect reliability:",round(attr(x$effects[,3], "reliability"), 3)))
+	
+	# Relationship effect reliability
+	if (!is.null(attr(x$effectsRel$relationship, "reliability"))) print(paste(role[[localOptions$style]][3], "effect reliability:",round(attr(x$effectsRel$relationship, "reliability"), 3)))
+	
+	# if (any(uni[1:2,2]<0.10) | any(is.na(uni[1:2,2]))) print(paste("Warning:",rownames(uni)[5],"should NOT be interpreted if standardized actor or partner variance is < 10%!"))
+	# if (uni[3,2]<0.10 | is.na(uni[3,2])) print(paste("Warning:",rownames(uni)[6],"should NOT be interpreted if standardized relationship variance is < 10%!"))
 }
 
 
 
 # Here the default print method for RR-objects gets overwritten, so that 
 # the information in the RR-class is displayed in a convenient way
-print.RR <- function(x, ..., measure1="behavior", measure2="behavior", digits=3, measure=NULL) {
+print.RR <- function(x, ..., measure1=NA, measure2=NA, digits=3, measure=NULL) {
+	
+	if (is.na(measure1)) measure1 <- localOptions$style
+	if (is.na(measure2)) measure2 <- measure1
+	
 	print("Round-Robin object ('RR'), calculated by Triple-R")
 	print(x$anal.type)
 	
@@ -1409,7 +1466,7 @@ print.RR <- function(x, ..., measure1="behavior", measure2="behavior", digits=3,
 		uni <- lapply(x$univariate, function(x) return(x))
 		bi <- round(x$bivariate[,2:ncol(x$bivariate)], digits)
 		
-		r.names <- NULL
+		r.names1 <- r.names2 <- NULL
 		if (measure1 == "behavior" & measure2 == "behavior") {
 			rownames(bi) <- bilabels_bb
 		} else
@@ -1423,16 +1480,16 @@ print.RR <- function(x, ..., measure1="behavior", measure2="behavior", digits=3,
 				rownames(bi) <- bilabels_pp
 		} else
 		if (measure1 == "perception" & measure2 == "metaperception") {
-			r.names <- unilabels_b_meta1
-			r.names <- unilabels_b_meta2
+			r.names1 <- unilabels_b_meta1
+			r.names2 <- unilabels_b_meta2
 			rownames(bi) <- bilabels_meta
 		} else {
 			stop("This combination of measurement labels does not fit.")
 		}
-		print("Univariate analyses, variable 1:")
-		print.uni(uni[[1]], measure=measure1, r.names=r.names)
-		print("Univariate analyses, variable 2:")
-		print.uni(uni[[2]], measure=measure2, r.names=r.names)
+		print(paste("Univariate analyses for:", attr(uni[[1]], "varname")))
+		print.uni(uni[[1]], measure=measure1, r.names=r.names1)
+		print(paste("Univariate analyses for:", attr(uni[[2]], "varname")))
+		print.uni(uni[[2]], measure=measure2, r.names=r.names2)
 		print("Bivariate analyses:")
 		print(bi)
 		
@@ -1440,6 +1497,7 @@ print.RR <- function(x, ..., measure1="behavior", measure2="behavior", digits=3,
 	
 	# univariate case
 	{
+		print(paste("Univariate analyses for:", attr(x, "varname")))
 		print.uni(x, measure=measure1)
 	}
 	

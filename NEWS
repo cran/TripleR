@@ -1,0 +1,38 @@
+#------------------------------------------------------------
+# ---- Changes in TripleR version 0.4.3  ----------------------
+#------------------------------------------------------------
+
+BUG FIXES
+
+- Standardized variances in bivariate manifest analysis are corrected
+
+
+#------------------------------------------------------------
+# ---- Changes in TripleR version 0.4.2  ----------------------
+#------------------------------------------------------------
+
+NEW FEATURES
+
+- Added a NEWS file (you're reading it) to document changes
+- Relationship effects now have a new column called 'dyad'. This facilitates subsequent dyadic analyses.
+- Relationship effects now are sorted that each pair of dyadic effects is in consecutive lines
+- Added new labeling system: all labels can now centrally controlled by one function: RR.style. 
+You set your styles once at the beginning of the project (e.g., RR.style("perception")), and all 
+subsequent calls of RR are styled accordingly (i.e., in RR.print appropriate labels are taken, and 
+the suffixes of the effects are appropriately set)
+- Reliability of relationship effects now is printed (provided only in latent analyses)
+
+
+MINOR IMPROVEMENTS/ CHANGES
+
+- Improved help files
+- Removed warning, that variance components < 10% should not be interpreted (the relevant indicator is 
+the significance of these components)
+- The labels of the reliabilities now are correctly set to actor/partner or perceiver/target, 
+depending on the style set.
+- Fixed line breaks in the vignette
+
+
+BUG FIXES
+
+- Labeling of perception/metaperception now is correct

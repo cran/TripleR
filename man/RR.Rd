@@ -2,6 +2,7 @@
 \alias{RR}
 \alias{liking_a}
 \alias{likingLong}
+\alias{multiLikingLong}
 \alias{liking_b}
 \alias{metaliking_a}
 \alias{metaliking_b}
@@ -13,31 +14,32 @@
 The function RR performs Social Relation Model (SRM) analyses for single or multiple round-robin groups. 
 }
 \usage{
-RR(formula, data, na.rm=FALSE, verbose=TRUE, suffixes=NULL, g.id=NULL)
+RR(formula, data, na.rm=FALSE, verbose=TRUE, g.id=NULL)
 }
-%- maybe also 'usage' for other objects documented here.
+
+
 \arguments{
 \item{formula}{a formula (see details) consisting of a measure (e.g. a rating) obtained with a round-robin group} 
 \item{data}{A data frame in long format}
 \item{na.rm}{Experimental! See Details}
 \item{verbose}{Defines if warnings and additional information should be printed on execution}
-\item{suffixes}{Which suffixes should be append to the actor and partner effects? Default is \code{.a} and \code{.p}. If you set the suffixes in one call of RR, they are stored as a permanent option (i.e., subsequent calls of RR without explicitly setting the suffixes will use the last setting).} 
 \item{g.id}{For internal use only; do not set this parameter}
 }
 \details{
+Please note: detailed instructions on how to use the TripleR package are provided in the vignette. You can open this pdf file by typing \code{vignette("TripleR")} into the R prompt. These help files are only for quick references.
+
 The estimation of the parameters of the Social Relation Model (SRM) is based on formulae provided by Kenny (1994; p. 236-244). For tests of significance of a single group, Triple R computes standard errors by using formulae published by Bond and Lashley (1996) for the case of a univariate SRM analysis. The formulae for the standard errors of the bivariate SRM parameters were kindly provided to us by C.F. Bond in personal communication. If multiple groups are provided, by default a between-group t-test is employed to calculate the significance. If you have very few groups with a considerable size (n>15), even in the multi group scenario it might be preferable to use the within-group test of significance. You can inspect the within-group test of significance for each of the multiple groups in the return value (see \code{groups.univariate}).
 
 The formula to specify the round robin design has following notation:
 \code{DV ~ actor.id * partner.id | group.id} (group.id is only provided if multiple groups are present). If two variables are used to describe one latent construct, both are connected with a slash on the left hand side: \code{DV1a/DV1b ~ actor.id * partner.id}. If two variables are used to describe two manifest constructs, both are connected with a \code{+} on the left hand side: \code{DV1+DV2 ~ actor.id * partner.id}. A latent analysis of two constructs would be notated as following: \code{DV1a/DV1b + DV2a/DV2b ~ actor.id * partner.id}.
-If a formula is used, the parameter \code{analysis} is ignored, as it is inferred from the formula.
 
 
-Data sets from the Mainz Freshman Study (see Back, Schmukle, & Egloff, 2009) are included (liking_a, liking_b, metaliking_a, metaliking_b, likingLong), as well as an additional data set containing missing values (multiGroup)
+Data sets from the Mainz Freshman Study (see Back, Schmukle, & Egloff, in press) are included (liking_a, liking_b, metaliking_a, metaliking_b, likingLong), as well as an additional data set containing missing values (multiGroup)
 
 Warning! Experimental! - 
 The handling for missing data (\code{na.rm=TRUE}) is performed in two steps:
 \itemize{
-\item rows and columns which are completely missing (e.g. if one member of the group did not show up) are removed from the matrix (i.e. both the "missing" row or column and the corresponding column or row, even if they have data in them)
+\item rows and columns which are completely missing (e.g. if one member of the group did not show up) are removed from the matrix (i.e. both the `missing' row or column and the corresponding column or row, even if they have data in them)
 \item the calculation for the sum of squares is adjusted by a correction factor that takes into account the altered degrees of freedom in the presence of missings. See also the included vignette, which documents the approach in more detail.
 }
 }
@@ -45,28 +47,36 @@ The handling for missing data (\code{na.rm=TRUE}) is performed in two steps:
 \value{
 Printed are both unstandardized and standardized SRM estimates with the corresponding standard errors and t-values for actor variance, partner variance, relationship variance, error variance, actor-partner covariance, and relationship covariance. In case of a bivariate analysis values are additionally provided for actor-actor covariance, partner-partner covariance, actor-partner covariance, partner-actor covariance, intrapersonal relationship covariance, and interpersonal relationship covariance. In case of a latent SRM analysis standard errors and t-values are only printed for actor variance, partner variance, and relationship variance. Standard errors and t-values for the other parameters are not printed, because to our knowledge the corresponding formulae have not been developed yet. Therefore, we suggest using the t-values of the SRM analysis based on the mean of the two indicators by using a manifest SRM analysis.
 
-\item{univariate}{List of results of univariate of SRM analyses - specify variable in index: univariate[[1]] or univariate[[2]]}
-\item{bivariate}{Results of bivariate SRM analyses}
-\item{effects}{actor and partner effects for all participants}
+The returned values depend on the kind of analyses that is performed:
+
+Univariate, single group:
+
+\item{effects}{actor and partner effects for all participants; if self ratings are provided they also are returned as group mean centered values}
 \item{effects.gm}{actor and partner effects for all participants, group mean added}
 \item{effectsRel}{relationship effects for all participants}
 \item{varComp}{variance components}
-\item{group.var}{group variance estimate}
 
-In the multi group case, also following values are returned:
+Bivariate, single group:
+\item{univariate}{List of results of univariate of SRM analyses of both variables- specify variable in index: univariate[[1]] or univariate[[2]]. That means, each of the both \code{univariate} objects is a complete RR object for the univariate analyses, nested in the results objects. If you want to retrieve the effects for the first variable, you have to type \code{RR2\$univariate[[1]]\$effects}. If you want to retrieve the variance components, you have to type \code{RR2\$univariate[[1]]\$varComp}}
+\item{bivariate}{Results of bivariate SRM analyses}
+
+
+In the multi group case, following values are returned:
 
 \item{univariate}{The weighted average of univariate SRM results}
 \item{bivariate}{The weighted average of bivariate SRM results}
-\item{groups.univariate}{SRM results for each group}
+\item{groups}{SRM results for each group}
 \item{effects}{actor and partner effects for all participants}
 \item{effectsRel}{relationship effects for all participants}
-\item{varComp.group}{a list of variance components in all single groups (provided in the multigroup case)}
+\item{varComp.group}{a list of variance components in all single groups}
+\item{group.var}{group variance estimate}
 
 }
 
 
 
-\note{Appropriate output labels for univariate analysis of behavior and perception data and for bivariate analyses including two kinds of behavior and/or perception data can be requested by using the \code{print} function. In case that a behavior was measured, the variances of an SRM analysis are labeled as actor variance, partner variance and relationship variance (default output labels). In case that a perception was measured, perceiver is printed instead of actor and target is printed instead of partner:
+\note{In case that a behavior was measured, the variances of an SRM analysis are labeled as actor variance, partner variance and relationship variance (default output labels). In case that a perception was measured, perceiver is printed instead of actor and target is printed instead of partner. You can appropriate output labels by using the function \code{\link{RR.style}}.
+These settings from RR.style, however, can be overrun for each \code{print} call: :
 
 \itemize{
 	\item \code{print(RRobject, measure1="behavior")}: prints output for a univariate analysis of behavior data.
@@ -85,13 +95,17 @@ In the multi group case, also following values are returned:
 }
 
 \references{ 
-Back, M. D., Schmukle, S. C., & Egloff, B. (2009). \emph{From first sight to friendship: A longitudinal social relations analysis of stability and change in interpersonal attraction}. Manuscript submitted for publication. 
+Back, M. D., Schmukle, S. C., & Egloff, B. (in press). From first sight to friendship: A longitudinal social relations analysis of stability and change in interpersonal attraction. \emph{European Journal of Personality}.
 
 Kenny, D. A. (1994). \emph{Interpersonal perception: A social relations analysis}. New York: Guilford Press.
 
 Lashley, B. R., & Bond, C. F., Jr. (1997). Significance testing for round robin data. \emph{Psychological Methods}, \emph{2}, 278-291.}
 
 \author{Stefan C. Schmukle, Felix D. Schönbrodt & Mitja D. Back}
+
+\seealso{
+\code{\link{RR.style}}, \code{\link{getEffects}}, \code{\link{plot_missings}}
+}
 
 \examples{
 #The example data are taken from the "Mainz Freshman Study" and consist 
@@ -163,7 +177,7 @@ print(RR4, measure1="perception", measure2="metaperception")
 data("multiGroup")
 data("multiLikingLong")
 
-#manifest univariate SRM analysis
+#manifest univariate SRM analysis; set effects suffixes to "perceiver", "target", "self"
 RR1m <- RR(liking_a ~ actor.id*partner.id|group.id, data=multiLikingLong)
 
 #manifest univariate SRM analysis, data set with missings
