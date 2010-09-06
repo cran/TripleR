@@ -12,6 +12,7 @@ localOptions$style <- "behavior"
 role <- list()
 role$behavior <- c("Actor", "Partner", "Relationship")
 role$perception <- c("Perceiver", "Target", "Relationship")
+role$metaperception <- c("Perceiver", "Target", "Relationship")
 
 # Labels actor-partner
 unilabels_b <- c("actor variance", "partner variance", "relationship variance", "error variance", "actor-partner covariance", "relationship covariance")
@@ -234,6 +235,10 @@ matrix2long <- function(M, new.ids=TRUE, var.id="value") {
 }
 
 
+# returns a numer as string with a fixed numer of characters and leading zeros, e.g. f2(2) = "01"
+f2 <- function(x, digits=2) {
+	sprintf(paste("%0",digits,"d", sep=""),x) 
+}
 
 
 # calculates Actor-, Partner- and Relationship-Effects from a single RR-Matrix
@@ -268,9 +273,12 @@ RR.effects <- function(RRMatrix, name=NA) {
 	effRel <- melt(c)
 	effRel <- effRel[apply(effRel, 1, function(x) {x[1] != x[2]}),]
 	colnames(effRel) <- c("actor.id", "partner.id","relationship")
-	effRel$dyad <- apply(effRel, 1, function(x) paste(as.character(min(x[1], x[2])), as.character(max(x[1], x[2])), sep="_"))
+	
+	# sort releffects according to dyad
+	digits <- floor(log10(n))+1
+	effRel$dyad <- apply(effRel, 1, function(x) paste(f2(min(x[1], x[2]), digits), f2(max(x[1], x[2]), digits), sep="_"))
 	effRel <- effRel[,c(1,2,4,3)]
-	effRel <- effRel[order(effRel$dyad),]
+	effRel <- effRel[order(effRel$dyad, effRel$actor.id),]
 	
 	eff.gm <- eff
 	if (!is.null(attr(RRMatrix, "self.ratings"))) {
@@ -591,8 +599,9 @@ if (analysis=="manifest") {
 	stand <- clamp(stabperr1, stabtarr1, stabrelr1, unstabler1,stabapcor1,stabdycor1)
 	stand[is.infinite(stand)] <- NaN
 	
-	se <- c(sestabpervar1,sestabtarvar1,sestabrelvar1,NA,NA,NA)
-	tvalues<-c(tstabpervar1,tstabtarvar1,tstabrelvar1,NA,NA,NA)
+	# se, t, und p werden aus dem bivariaten Fall übernommen
+	se <- c(sestabpervar1,sestabtarvar1,sestabrelvar1,NA,(sesag+sesbf)/2,seschs)
+	tvalues<-c(tstabpervar1,tstabtarvar1,tstabrelvar1,NA,stabapcov1/((sesag+sesbf)/2),tchs)
 	pvalues <- dt(tvalues, n-1)
 	pvalues[4:5] <- pvalues[4:5]*2
 	
@@ -676,7 +685,6 @@ analysis <- "manifest"
 RRMatrix2 <- RRMatrix3 <- RRMatrix4 <- NULL
 
 # transform long format (formula) to quadratic matrices
-#print("Long format is converted in quadratic matrices ...")
 if (is.null(data)) stop("If a formula is specified, an explicit data object has to be provided!");
 
 #remove spaces from formula
@@ -1144,6 +1152,8 @@ RR.multi.uni <- function(formule, data, na.rm=FALSE, verbose=TRUE) {
 	
 		res2 <- list(effects = effect, effectsRel = effectRel, effects.gm = eff.gm, varComp = varComp, groups = g.uni, varComp.groups=res, group.var=group.var, anal.type=anal.type)
 		class(res2) <- "RRmulti"
+		attr(res2, "varname") <- attr(g.uni[[1]], "varname")
+		
 		return(res2)
 	} else {return();}
 	
@@ -1152,10 +1162,16 @@ RR.multi.uni <- function(formule, data, na.rm=FALSE, verbose=TRUE) {
 
 
 # mode = c("scatter", "bar")
+
 plot.RRmulti <- function(x, ..., measure=NA, geom="scatter", conf.level=0.95, connect=FALSE) {
 	RRm <- x
 	
-	if (is.na(measure)) measure <- localOptions$style
+	if (is.na(measure)) {
+		measure <- localOptions$style
+	} else {
+		measure <- match.arg(measure, c("behavior", "perception", "metaperception"))
+	}
+	
 	library(ggplot2)
 	
 	mode <- ifelse(length(RRm$univariate)==2,"bi","uni")
@@ -1247,7 +1263,11 @@ plot.RRbi <- function(x, ...) {
 plot.RRuni <- function(x, ..., measure=NA, geom="bar") {
 	
 	RRu <- x
-	if (is.na(measure)) measure <- localOptions$style
+	if (is.na(measure)) {
+		measure <- localOptions$style
+	} else {
+		measure <- match.arg(measure, c("behavior", "perception", "metaperception"))
+	}
 	
 	library(ggplot2)
 	
@@ -1383,7 +1403,6 @@ getEffects <- function(formule, data, varlist, by=NA, na.rm=TRUE) {
 
 
 	# now combine all effects in a single data frame; merge by id
-	library(reshape)
 	
 	if (is.na(by)) {
 		if (length(RR1$groups) > 1) {by <- c("id", "group.id")} 
@@ -1410,8 +1429,14 @@ print.RRbi <- function(x, ...) {
 }
 
 # x muss hier direkt auf das univariate-Objekt verweisen
-print.uni <- function(x, ..., measure="behavior", digits=3, r.names=NULL) {
+print.uni <- function(x, ..., measure=NA, digits=3, r.names=NULL) {
 	uni <- round(x$varComp[,2:ncol(x$varComp)], digits)
+	
+	if (is.na(measure)) {
+		measure <- localOptions$style
+	} else {
+		measure <- match.arg(measure, c("behavior", "perception", "metaperception"))
+	}
 	
 	if (!is.null(r.names)) {rownames(uni) <- r.names} else {
 		if (measure == "behavior") rownames(uni) <- unilabels_b
@@ -1424,14 +1449,15 @@ print.uni <- function(x, ..., measure="behavior", digits=3, r.names=NULL) {
 	
 	print(uni)
 	
+	
 	# Actor effect reliability
-	if (!is.null(x$effects[,2])) print(paste(role[[localOptions$style]][1], "effect reliability:",round(attr(x$effects[,2], "reliability"), 3)))
+	if (!is.null(x$effects[,2])) print(paste(role[[measure]][1], "effect reliability:",round(attr(x$effects[,2], "reliability"), 3)))
 	
 	# Partner effect reliability
-	if (!is.null(x$effects[,3])) print(paste(role[[localOptions$style]][2], "effect reliability:",round(attr(x$effects[,3], "reliability"), 3)))
+	if (!is.null(x$effects[,3])) print(paste(role[[measure]][2], "effect reliability:",round(attr(x$effects[,3], "reliability"), 3)))
 	
 	# Relationship effect reliability
-	if (!is.null(attr(x$effectsRel$relationship, "reliability"))) print(paste(role[[localOptions$style]][3], "effect reliability:",round(attr(x$effectsRel$relationship, "reliability"), 3)))
+	if (!is.null(attr(x$effectsRel$relationship, "reliability"))) print(paste(role[[measure]][3], "effect reliability:",round(attr(x$effectsRel$relationship, "reliability"), 3)))
 	
 	# if (any(uni[1:2,2]<0.10) | any(is.na(uni[1:2,2]))) print(paste("Warning:",rownames(uni)[5],"should NOT be interpreted if standardized actor or partner variance is < 10%!"))
 	# if (uni[3,2]<0.10 | is.na(uni[3,2])) print(paste("Warning:",rownames(uni)[6],"should NOT be interpreted if standardized relationship variance is < 10%!"))
@@ -1443,10 +1469,18 @@ print.uni <- function(x, ..., measure="behavior", digits=3, r.names=NULL) {
 # the information in the RR-class is displayed in a convenient way
 print.RR <- function(x, ..., measure1=NA, measure2=NA, digits=3, measure=NULL) {
 	
-	if (is.na(measure1)) measure1 <- localOptions$style
-	if (is.na(measure2)) measure2 <- measure1
+	if (is.na(measure1)) {
+		measure1 <- localOptions$style
+	} else {
+		measure1 <- match.arg(measure1, c("behavior", "perception", "metaperception"))
+	}
+	if (is.na(measure2)) {
+		measure2 <- measure1
+	} else {
+		measure2 <- match.arg(measure2, c("behavior", "perception", "metaperception"))
+	}
 	
-	print("Round-Robin object ('RR'), calculated by Triple-R")
+	print("Round-Robin object ('RR'), calculated by TripleR")
 	print(x$anal.type)
 	
 	

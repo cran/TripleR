@@ -16,7 +16,7 @@ License: \tab GPL (>=2)\cr
 LazyLoad: \tab yes\cr
 }
 
-For further information of usage see \code{\link{RR}} or the built in pdf document `How to use TripleR'. You can open this document either by typing \code{vignette("TripleR")} into the \code{R} prompt, or you can browse all included vignettes by opening the index of the package documentation (scroll down to the very end of this page and click on `Index'; than click on `Overview of user guides and package vignettes')
+For further information of usage see \code{\link{RR}} or the built in pdf document `How to use TripleR'. You can open this document either by on this link: \url{../doc/TripleR.pdf}, or you can browse all included vignettes by opening the index of the package documentation (scroll down to the very end of this page and click on `Index'; than click on `Overview of user guides and package vignettes').
 
 If you use this package in your research, please cite it as:
 Schmukle, S. C., Schönbrodt, F.D., & Back, M. D. (2010). TripleR: A package for round robin analyses using R (version 0.3.6). Retrieved from http://www.persoc.net/ToolBox/TripleR.
@@ -26,6 +26,8 @@ Schmukle, S. C., Schönbrodt, F.D., & Back, M. D. (2010). TripleR: A package for
 }
 \references{
 Back, M. D., Schmukle, S. C., & Egloff, B. (2009). From first sight to friendship: A longitudinal social relations analysis of stability and change in interpersonal attraction. Manuscript submitted for publication. 
+
+Bonito, J. A., & Kenny, D. A. (2010). The measurement of reliability of social relations components from round-robin designs. Personal Relationships, 17, 235 - 251.
 
 Kenny, D. A. (1994). Interpersonal perception: A social relations analysis. New York: Guilford Press.
 

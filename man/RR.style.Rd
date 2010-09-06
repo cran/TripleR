@@ -15,7 +15,7 @@ RR.style(style="behavior", suffixes=NA)
 }
 
 \value{
-Printing options and naming conventions are set for all subsequent analyses.
+Printing options and naming conventions are set for all subsequent analyses. If you specify other styles in a print.RR call, this setting temporarily overwrites the settings from RR.style (without changing them).
 }
 
 

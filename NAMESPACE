@@ -1,7 +1,7 @@
-import(reshape)
-import(plyr)
+importFrom(reshape, merge_recurse)
+importFrom(plyr, ldply, laply)
 
-export(RR, plot_missings, long2matrix, matrix2long, getEffects, RR.style)
+export(RR, plot_missings, long2matrix, matrix2long, getEffects, RR.style, plot.RRuni, plot.RRbi, plot.RRmulti)
 
 S3method(print, uni)
 S3method(print, RR)

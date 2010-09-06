@@ -20,14 +20,17 @@ matrix2long(M, new.ids=TRUE, var.id="value")
 A data frame in long format
 }
 
+\seealso{
+\code{\link{long2matrix}}
+}
+
 \examples{
 #The example data are taken from the "Mainz Freshman Study" and consist 
 # of ratings of liking as well as ratings of the metaperception of 
 # liking at zero-acquaintance using a Round-Robin group of 54 participants 
-# (Back, Schmukle, & Egloff, 2009)
+# (Back, Schmukle, & Egloff, in pres)
 
-
-#all four variable in one data frame in long format
+# load a data set in matrix style
 data("liking_a")
 
 str(liking_a)

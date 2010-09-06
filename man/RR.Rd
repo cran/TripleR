@@ -7,6 +7,7 @@
 \alias{metaliking_a}
 \alias{metaliking_b}
 \alias{multiGroup}
+\alias{multiNarc}
 
 
 \title{Triple R: Round-Robin Analyses Using R}
@@ -75,8 +76,8 @@ In the multi group case, following values are returned:
 
 
 
-\note{In case that a behavior was measured, the variances of an SRM analysis are labeled as actor variance, partner variance and relationship variance (default output labels). In case that a perception was measured, perceiver is printed instead of actor and target is printed instead of partner. You can appropriate output labels by using the function \code{\link{RR.style}}.
-These settings from RR.style, however, can be overrun for each \code{print} call: :
+\note{In case that a behavior was measured, the variances of an SRM analysis are labeled as actor variance, partner variance and relationship variance (default output labels). In case that a perception was measured, perceiver is printed instead of actor and target is printed instead of partner. You can set appropriate output labels by using the function \code{\link{RR.style}}.
+These settings from RR.style, however, can be overwritten for each \code{print} call: :
 
 \itemize{
 	\item \code{print(RRobject, measure1="behavior")}: prints output for a univariate analysis of behavior data.
@@ -92,10 +93,15 @@ These settings from RR.style, however, can be overrun for each \code{print} call
 	
 	\item \code{print(RRobject, measure1="perception", measure2="metaperception")}: is for the special case that a perception and a corresponding metaperception was measured. In this case, additionally the appropriate output labels for bivariate SRM analyses of other- and metaperceptions (reciprocities, assumed reciprocities, meta-accuracies; see Kenny, 1994) are presented.
 }
+
+
+You can plot any RR object using \code{plot(RR)}. See \code{\link{plot.RRuni}} for possible parameters.
 }
 
 \references{ 
 Back, M. D., Schmukle, S. C., & Egloff, B. (in press). From first sight to friendship: A longitudinal social relations analysis of stability and change in interpersonal attraction. \emph{European Journal of Personality}.
+
+Bonito, J. A., & Kenny, D. A. (2010). The measurement of reliability of social relations components from round-robin designs. Personal Relationships, 17, 235 - 251.
 
 Kenny, D. A. (1994). \emph{Interpersonal perception: A social relations analysis}. New York: Guilford Press.
 
@@ -104,33 +110,26 @@ Lashley, B. R., & Bond, C. F., Jr. (1997). Significance testing for round robin 
 \author{Stefan C. Schmukle, Felix D. Schönbrodt & Mitja D. Back}
 
 \seealso{
-\code{\link{RR.style}}, \code{\link{getEffects}}, \code{\link{plot_missings}}
+\code{\link{RR.style}}, \code{\link{getEffects}}, \code{\link{plot_missings}}, \code{\link{long2matrix}}, \code{\link{matrix2long}}, \code{\link{plot.RRuni}}
 }
 
 \examples{
 #The example data are taken from the "Mainz Freshman Study" and consist 
 # of ratings of liking as well as ratings of the metaperception of 
 # liking at zero-acquaintance using a Round-Robin group of 54 participants 
-# (Back, Schmukle, & Egloff, 2009)
+# (Back, Schmukle, & Egloff, in press)
 
 
 #------------------------------------------------------------
 # ----  Single group   --------------------------------------
 #------------------------------------------------------------
 
+# Load data frame in long format - it contains 4 variables:
+#liking ratings indicator a (liking_a, "How likeable do you find this person?")  
+#liking ratings indicator b (liking_b, "Would you like to get to know this person?")
+#metaliking ratings indicator a (metaliking_a, "How likeable does this person find you?")
+#metaliking ratings indicator b (metaliking_b, "Would this person like to get to know you?")
 
-
-#Four Round-Robin matrices are read
-#liking ratings indicator a ("How likeable do you find this person?")  
-data("liking_a")
-#liking ratings indicator b ("Would you like to get to know this person?")
-data("liking_b")
-#metaliking ratings indicator a ("How likeable does this person find you?")
-data("metaliking_a")
-#metaliking ratings indicator b ("Would this person like to get to know you?")
-data("metaliking_b")  
-
-#all four variable in one data frame in long format
 data("likingLong")
 
 
@@ -164,8 +163,9 @@ print(RR2, measure1="perception", measure2="metaperception")
 print(RR3, measure1="perception") 
 
 #prints output of the latent bivariate SRM analysis
-# appropriate for perception-metaperception data  
-print(RR4, measure1="perception", measure2="metaperception") 
+# appropriate for perception-perception data  
+# Note: you can use abbreviations of the strings "behavior", "perception", and "metaperception"
+print(RR4, measure1="p", measure2="p") 
 
 
 
@@ -173,8 +173,11 @@ print(RR4, measure1="perception", measure2="metaperception")
 # ----  Multi group --------------------------------------
 #------------------------------------------------------------
 
-
+# a multi group data set with two variables:
+# ex = extraversion ratings, and ne = neurotizism ratings
 data("multiGroup")
+
+# Contains the liking data set (ee above) for multiple groups
 data("multiLikingLong")
 
 #manifest univariate SRM analysis; set effects suffixes to "perceiver", "target", "self"

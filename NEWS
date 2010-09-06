@@ -1,4 +1,45 @@
 #------------------------------------------------------------
+# ---- Changes in TripleR version 0.4.6  ----------------------
+#------------------------------------------------------------
+
+NEW FEATURES
+
+- added significance test for covariances in the univariate latent case
+
+
+MINOR IMPROVEMENTS/ CHANGES
+
+- improved vignette
+- added a link to TripleR.pdf in the main help page
+- fixed a small bug in printing multiple groups: The variable name now is displayed
+- fixed a namespace conflict with imported packages
+
+
+
+#------------------------------------------------------------
+# ---- Changes in TripleR version 0.4.5  ----------------------
+#------------------------------------------------------------
+
+MINOR IMPROVEMENTS/ CHANGES
+
+- updated vignette with an instruction how to calculate partial correlations between
+SRM effects and external variables
+- speed improvements
+
+
+#------------------------------------------------------------
+# ---- Changes in TripleR version 0.4.4  ----------------------
+#------------------------------------------------------------
+
+MINOR IMPROVEMENTS/ CHANGES
+
+- Improved help files, added help file for plot.RR
+
+BUG FIXES
+
+- Fixed minor bug in styles: Labels of reliabilities now always are displayed correctly
+
+#------------------------------------------------------------
 # ---- Changes in TripleR version 0.4.3  ----------------------
 #------------------------------------------------------------
 
