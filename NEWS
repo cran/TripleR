@@ -1,4 +1,13 @@
 #------------------------------------------------------------
+# ---- Changes in TripleR version 0.5  ----------------------
+#------------------------------------------------------------
+
+- checked 2.12.0 compatibility ( ... it works)
+- introduced new parameter to RR: minData. minData (default = 1) controls the minimum amount of data points which should be in each row or column of the round robin matrix. For example, minData=2 means that for each participant, at least two data points have to be present both as actor and as target.
+- Updated the procedure for missing values: For the calculation of variance components and effects, missing values are imputed as the average of the respective row and col means. Relationship effects which were missing in the original data set then are set to NA again.
+
+
+#------------------------------------------------------------
 # ---- Changes in TripleR version 0.4.6  ----------------------
 #------------------------------------------------------------
 

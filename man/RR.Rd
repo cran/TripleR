@@ -15,14 +15,15 @@
 The function RR performs Social Relation Model (SRM) analyses for single or multiple round-robin groups. 
 }
 \usage{
-RR(formula, data, na.rm=FALSE, verbose=TRUE, g.id=NULL)
+RR(formula, data, na.rm=FALSE, minData=1, verbose=TRUE, g.id=NULL)
 }
 
 
 \arguments{
 \item{formula}{a formula (see details) consisting of a measure (e.g. a rating) obtained with a round-robin group} 
 \item{data}{A data frame in long format}
-\item{na.rm}{Experimental! See Details}
+\item{na.rm}{If missing values are present, you have to set this parameter to TRUE}
+\item{minData}{Sets the minimum of data points which have to be present in each row and column}
 \item{verbose}{Defines if warnings and additional information should be printed on execution}
 \item{g.id}{For internal use only; do not set this parameter}
 }
@@ -37,11 +38,10 @@ The formula to specify the round robin design has following notation:
 
 Data sets from the Mainz Freshman Study (see Back, Schmukle, & Egloff, in press) are included (liking_a, liking_b, metaliking_a, metaliking_b, likingLong), as well as an additional data set containing missing values (multiGroup)
 
-Warning! Experimental! - 
 The handling for missing data (\code{na.rm=TRUE}) is performed in two steps:
 \itemize{
-\item rows and columns which are completely missing (e.g. if one member of the group did not show up) are removed from the matrix (i.e. both the `missing' row or column and the corresponding column or row, even if they have data in them)
-\item the calculation for the sum of squares is adjusted by a correction factor that takes into account the altered degrees of freedom in the presence of missings. See also the included vignette, which documents the approach in more detail.
+\item Rows and columns which have less then \code{minData} data points are removed from the matrix (i.e. both the `missing' row or column and the corresponding column or row, even if they have data in them)
+\item For the calculation of variance components and effects, missing values are imputed as the average of the respective row and col means. Relationship effects which were missing in the original data set then are set to NA again.
 }
 }
 

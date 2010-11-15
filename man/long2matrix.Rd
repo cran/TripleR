@@ -7,13 +7,14 @@ This function converts data from the long format to a quadratic round robin matr
 }
 
 \usage{
-long2matrix(formule, data, verbose=TRUE, reduce=TRUE, skip3=FALSE, g.id=NULL)
+long2matrix(formule, data, minData=1, verbose=TRUE, reduce=TRUE, skip3=FALSE, g.id=NULL)
 }
 
 \arguments{
-	\item{data}{A data frame in long format)}
 	\item{formule}{A formula specifying the variable names. Example usage: \code{DV ~ actor.id*partner.id | group.id} (group.id only necessary in multi group data sets)}
+	\item{data}{A data frame in long format)}
 	\item{verbose}{Should additional information be printed?}
+	\item{minData}{Sets the minimum of data points which have to be present in each row and column}
 	\item{reduce}{Should persons that only are actors or only partners be removed? Actor/partner effects and variance components can only be calculated, if every person is both an actor and a partner. For displaying reasons (e.g. for data inspection), however, it can be necessary to check, which persons are missing.}
 	\item{skip3}{Should groups with 3 or fewer participants be skipped? SRAs need groups with a minimum of 4 participants}
 	\item{g.id}{For internal use only}

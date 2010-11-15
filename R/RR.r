@@ -69,7 +69,7 @@ clamp <- function(...) {
 
 # function takes data in the "long" format and returns a list with quadratic
 # round robin matrices for each group
-long2matrix <- function(formule, data, verbose=TRUE, reduce=TRUE, skip3=FALSE, g.id=NULL) {
+long2matrix <- function(formule, data, minData=1, verbose=TRUE, reduce=TRUE, skip3=FALSE, g.id=NULL) {
 	
 	# parse formula
 	#remove spaces from formula
@@ -111,9 +111,9 @@ long2matrix <- function(formule, data, verbose=TRUE, reduce=TRUE, skip3=FALSE, g
 		block <- data[data[,group.id]==g,]
 		
 		# reduce ids to factor levels which are actually present
-		block[,actor.id] <- factor(block[,actor.id])
-		block[,partner.id] <- factor(block[,partner.id])
-		block[,group.id] <- factor(block[,group.id])
+		block[,actor.id] <- factor(as.character(block[,actor.id]), ordered=TRUE)
+		block[,partner.id] <- factor(as.character(block[,partner.id]), ordered=TRUE)
+		block[,group.id] <- factor(as.character(block[,group.id]), ordered=TRUE)
 						
 		# get names of participants which served both as actors and observers
 		if (reduce==TRUE) {
@@ -139,12 +139,6 @@ long2matrix <- function(formule, data, verbose=TRUE, reduce=TRUE, skip3=FALSE, g
 		block.clean <- block[block[,actor.id] %in% p2 & block[,partner.id] %in% p2, which(colnames(block) != group.id)]
 
 
-
-
-		
-		if (verbose==TRUE & nrow(block.clean)<nrow(block)) {
-			#warning(paste("Warning: Some participants in group",g,"are only actors or only partners. They are removed from the round robin matrix."))
-		}
 		
 		# finally: construct the quadratic matrix
 		f1 <- as.formula(paste(actor.id,"~",partner.id))
@@ -167,8 +161,8 @@ long2matrix <- function(formule, data, verbose=TRUE, reduce=TRUE, skip3=FALSE, g
 		# Voyeure entfernen (nur actors oder nur partners) - iterativ
 		if (reduce) {
 			repeat {
-				del.row <- apply(box, 1, function(x) sum(is.na(x)) >= length(x))
-				del.col <- apply(box, 2, function(x) sum(is.na(x)) >= length(x))
+				del.row <- apply(box, 1, function(x) (length(x) - sum(is.na(x))) < minData)
+				del.col <- apply(box, 2, function(x) (length(x) - sum(is.na(x))) < minData)
 				dels <- del.row | del.col
 				if (sum(dels==TRUE) == 0) {break();}
 				box <- box[!dels,!dels]
@@ -198,8 +192,8 @@ long2matrix <- function(formule, data, verbose=TRUE, reduce=TRUE, skip3=FALSE, g
 
 
 
-clearLongData <- function(formule, data) {
-	ll1 <- long2matrix(formule, data, reduce=TRUE)
+clearLongData <- function(formule, data, minData=1) {
+	ll1 <- long2matrix(formule, data, reduce=TRUE, minData=minData)
 	
 	lhs <- strsplit(gsub(" ","",as.character(formule)[2], fixed=TRUE), "+", fixed=TRUE)[[1]]
 	rhs <- strsplit(gsub(" ","",as.character(formule)[3], fixed=TRUE),"\\*|\\|", perl=TRUE)[[1]]
@@ -235,6 +229,93 @@ matrix2long <- function(M, new.ids=TRUE, var.id="value") {
 }
 
 
+
+# berechnet schnell die Effekte, ohne sonstigen Krimskrams
+quickeffects <- function(RRMatrix) {
+	RRMatrix <- as.matrix(RRMatrix)
+	mip <- rowMeans(RRMatrix, na.rm=TRUE)
+	mpj <- colMeans(RRMatrix, na.rm=TRUE)
+	mpp <- mean(RRMatrix, na.rm=TRUE)  # grand mean
+
+   n <- length(mip)
+   a <- ((n-1)^2)/(n*(n-2))*mip + (n-1)/(n*(n-2))*mpj - (n-1)/(n-2)*mpp #actor effects
+   b <- ((n-1)^2)/(n*(n-2))*mpj + (n-1)/(n*(n-2))*mip - (n-1)/(n-2)*mpp #partner effects
+   
+   am <- matrix(a, nrow(RRMatrix), ncol(RRMatrix))
+   bm <- t(matrix(b, nrow(RRMatrix), ncol(RRMatrix)))
+   c <- RRMatrix - am - bm - mpp		 # relationship effect
+
+	return(list(a=a,b=b,c=c,m=mpp))
+}
+
+impute <- function(RRMatrix, na.rm="meansNA", stress.max = 0.01, maxIt=100) {
+
+	# in Matrix umwandeln, sonst geht's nicht ...
+	RRMatrix2 <- as.matrix(RRMatrix)
+	rownames(RRMatrix2) <- rownames(RRMatrix)
+	colnames(RRMatrix2) <- colnames(RRMatrix)
+	RRMatrix <- RRMatrix2
+	
+	NAs <- is.na(RRMatrix)		# Matrix, die die Position der NAs außerhalb der Diagonale speichert
+	
+	save.diag <- diag(RRMatrix)	# self ratings aus der Diagonale abspeichern
+	diag(RRMatrix) <- NA
+
+	eff0 <- eff <- quickeffects(RRMatrix)
+	stress <- 1
+	it <- 0
+
+	# save evolution of parameters
+	as <- matrix(eff$a, nrow=1, ncol=ncol(RRMatrix))
+	bs <- matrix(eff$b, nrow=1, ncol=ncol(RRMatrix))
+	ms <- c()
+	
+	while (stress > stress.max) {
+	
+		rM <- rowMeans(RRMatrix, na.rm=TRUE)
+		cM <- colMeans(RRMatrix, na.rm=TRUE)
+		rM_mean <- mean(rM)
+		cM_mean <- mean(cM)
+		grandmean <- mean(RRMatrix, na.rm=TRUE)
+		
+		for (i in 1:ncol(RRMatrix)) {
+			for (j in 1:nrow(RRMatrix)) {
+				if (NAs[j,i]==TRUE) {
+					
+					# Ersetzung durch mittleres Zeilen/ Spaltenmittel
+					if (grepl("mean", na.rm)) {
+						RRMatrix[j,i] <- (rM[j] + cM[i])/2
+					}
+				
+				}
+			}
+		}
+
+		if (grepl("1", na.rm)) break; # bei means1, chi1: beim ersten Durchgang gleich rausspringen
+
+		eff <- quickeffects(RRMatrix)
+
+		stress <- max(max(abs(eff$a - eff0$a)), max(abs(eff$b - eff0$b)))
+		eff0 <- eff
+		it <- it + 1
+		
+		if (it > maxIt) {
+			warning("Maximum iterations exceeded; fall back to single imputation.")
+			return(impute(RRMatrix2, paste(na.rm,"1",sep="")))
+		}
+		
+		as <- rbind(as, eff$a)
+		bs <- rbind(bs, eff$b)
+		ms <- c(ms, eff$m)
+	}	
+	
+	diag(RRMatrix) <- save.diag
+	if (!grepl("NA", na.rm)) {NAs[] <- FALSE}
+	
+	return(list(RRMatrix=RRMatrix, NAs=NAs, iterations=it, as=as, bs=bs, ms=ms))
+}
+
+
 # returns a numer as string with a fixed numer of characters and leading zeros, e.g. f2(2) = "01"
 f2 <- function(x, digits=2) {
 	sprintf(paste("%0",digits,"d", sep=""),x) 
@@ -242,22 +323,38 @@ f2 <- function(x, digits=2) {
 
 
 # calculates Actor-, Partner- and Relationship-Effects from a single RR-Matrix
-RR.effects <- function(RRMatrix, name=NA) {
+RR.effects <- function(RRMatrix, name=NA, na.rm=FALSE) {
 
 	if (!is.null(attr(RRMatrix, "varname"))) name <- attr(RRMatrix, "varname")
+	
+	RRold <- RRMatrix		
+	if (na.rm & sum(is.na(RRMatrix))>nrow(RRMatrix)) {
+		imp <- impute(RRMatrix)
+		RRMatrix <- imp$RRMatrix
+		imputation <- TRUE
+	} else {
+		imputation <- FALSE
+	}
+	
 
-	 mip <- apply(RRMatrix, 1, mean, na.rm=TRUE)
-	 mpj <- apply(RRMatrix, 2, mean, na.rm=TRUE)
-	 mpp <- mean(as.matrix(RRMatrix), na.rm=TRUE)  # grand mean
+	RRMatrix2 <- as.matrix(RRMatrix)
+	mip <- rowMeans(RRMatrix2, na.rm=TRUE)
+	mpj <- colMeans(RRMatrix2, na.rm=TRUE)
+	mpp <- mean(RRMatrix2, na.rm=TRUE)  # grand mean
 
-	 n <- length (mip)
-	 a <- ((n-1)^2)/(n*(n-2))*mip + (n-1)/(n*(n-2))*mpj - (n-1)/(n-2)*mpp #actor effects
-	 b <- ((n-1)^2)/(n*(n-2))*mpj + (n-1)/(n*(n-2))*mip - (n-1)/(n-2)*mpp #partner effects
+	n <- length(mip)
+	a <- ((n-1)^2)/(n*(n-2))*mip + (n-1)/(n*(n-2))*mpj - (n-1)/(n-2)*mpp #actor effects
+	b <- ((n-1)^2)/(n*(n-2))*mpj + (n-1)/(n*(n-2))*mip - (n-1)/(n-2)*mpp #partner effects
 
-	 am <- matrix(a, nrow(RRMatrix), ncol(RRMatrix))
-	 bm <- t(matrix(b, nrow(RRMatrix), ncol(RRMatrix)))
-	 c <- as.matrix(RRMatrix - am - bm - mpp) # relationship effect
+	am <- matrix(a, nrow(RRMatrix2), ncol(RRMatrix2))
+	bm <- t(matrix(b, nrow(RRMatrix2), ncol(RRMatrix2)))
+	c <- RRMatrix2 - am - bm - mpp		 # relationship effect
 	rownames(c) <- colnames(c) <- rownames(RRMatrix)
+	
+	# delete all relationship effects which had a NA in the original matrix
+	if (imputation) {
+		c[imp$NAs==TRUE] <- NA
+	}
 	
 	# return effects also in long format
 	if (!is.null(attr(RRMatrix, "self.ratings"))) {
@@ -275,10 +372,10 @@ RR.effects <- function(RRMatrix, name=NA) {
 	colnames(effRel) <- c("actor.id", "partner.id","relationship")
 	
 	# sort releffects according to dyad
-	digits <- floor(log10(n))+1
-	effRel$dyad <- apply(effRel, 1, function(x) paste(f2(min(x[1], x[2]), digits), f2(max(x[1], x[2]), digits), sep="_"))
-	effRel <- effRel[,c(1,2,4,3)]
-	effRel <- effRel[order(effRel$dyad, effRel$actor.id),]
+	#digits <- floor(log10(n))+1
+	#effRel$dyad <- apply(effRel, 1, function(x) paste(f2(min(x[1], x[2]), digits), f2(max(x[1], x[2]), digits), sep="_"))
+	#effRel <- effRel[,c(1,2,4,3)]
+	#effRel <- effRel[order(effRel$dyad, effRel$actor.id),]
 	
 	eff.gm <- eff
 	if (!is.null(attr(RRMatrix, "self.ratings"))) {
@@ -296,9 +393,10 @@ RR.effects <- function(RRMatrix, name=NA) {
 
 
 
+
 # calculates variance components from a single RR-Matrix
 # na.rm = TRUE / FALSE / "impute" (<- not implemented yet)
-RR.univariate <- function(RRMatrix, na.rm=FALSE, verbose=TRUE, corr.fac=NA) {
+RR.univariate <- function(RRMatrix, na.rm=FALSE, verbose=TRUE, corr.fac="1") {
 	
 	if (is.null(RRMatrix)) return();
 	
@@ -316,7 +414,7 @@ RR.univariate <- function(RRMatrix, na.rm=FALSE, verbose=TRUE, corr.fac=NA) {
 		#warning("Note: There are NAs outside the diagonale. Degrees of freedom in Kenny's (1994) formula are adjusted for missings. THIS IS EXPERIMENTAL AND NOT THOROUGHLY TESTED. Maybe you should think about imputation procedures to obtain a complete matrix.")
 	}
 	
-	eff <- RR.effects(RRMatrix, name=attr(RRMatrix, "varname"))
+	eff <- RR.effects(RRMatrix, name=attr(RRMatrix, "varname"), na.rm=na.rm)
 	n <- nrow(RRMatrix)
 	
 	A <- sum(eff$actor^2)/(n-1)
@@ -678,7 +776,7 @@ ifg <- function(g) {
 
 
 # Wrapper function: depending on parameters, different results are calculated:
-RR <- function(formula, data, na.rm=FALSE, verbose=TRUE, g.id=NULL) {
+RR <- function(formula, data, na.rm=FALSE, minData = 1, verbose=TRUE, g.id=NULL) {
 
 # set default
 analysis <- "manifest"
@@ -710,11 +808,11 @@ if (length(lhs)==1) {
 	
 	# manifester vs. latenter Fall
 	if (length(lhs1)==1) {
-		RRMatrix1 <- long2matrix(formula(paste(lhs1,"~",actor.id,"*",partner.id,ifg(group.id))), data, verbose=verbose, skip3=TRUE, g.id=g.id)[[1]]
+		RRMatrix1 <- long2matrix(formula(paste(lhs1,"~",actor.id,"*",partner.id,ifg(group.id))), data, verbose=verbose, minData=minData, skip3=TRUE, g.id=g.id)[[1]]
 		analysis <- "manifest"
 	} else if (length(lhs1)==2) {
-		RRMatrix1 <- long2matrix(formula(paste(lhs1[1],"~",actor.id,"*",partner.id,ifg(group.id))), data, verbose=verbose, skip3=TRUE, g.id=g.id)[[1]]
-		RRMatrix2 <- long2matrix(formula(paste(lhs1[2],"~",actor.id,"*",partner.id,ifg(group.id))), data, verbose=verbose, skip3=TRUE, g.id=g.id)[[1]]
+		RRMatrix1 <- long2matrix(formula(paste(lhs1[1],"~",actor.id,"*",partner.id,ifg(group.id))), data, verbose=verbose, minData=minData, skip3=TRUE, g.id=g.id)[[1]]
+		RRMatrix2 <- long2matrix(formula(paste(lhs1[2],"~",actor.id,"*",partner.id,ifg(group.id))), data, verbose=verbose, minData=minData, skip3=TRUE, g.id=g.id)[[1]]
 		analysis <- "latent"
 	}
 	
@@ -726,15 +824,15 @@ if (length(lhs)==2) {
 	
 	# manifester vs. latenter Fall
 	if (length(lhs1)==1) {
-		RRMatrix1 <- long2matrix(formula(paste(lhs[1],"~",actor.id,"*",partner.id,ifg(group.id))), data, verbose=verbose, skip3=TRUE, g.id=g.id)[[1]]
-		RRMatrix2 <- long2matrix(formula(paste(lhs[2],"~",actor.id,"*",partner.id,ifg(group.id))), data, verbose=verbose, skip3=TRUE, g.id=g.id)[[1]]
+		RRMatrix1 <- long2matrix(formula(paste(lhs[1],"~",actor.id,"*",partner.id,ifg(group.id))), data, verbose=verbose, minData=minData, skip3=TRUE, g.id=g.id)[[1]]
+		RRMatrix2 <- long2matrix(formula(paste(lhs[2],"~",actor.id,"*",partner.id,ifg(group.id))), data, verbose=verbose, minData=minData, skip3=TRUE, g.id=g.id)[[1]]
 		analysis <- "manifest"
 	} else if (length(lhs1)==2) {
 		lhs2 <- strsplit(lhs[2], "/")[[1]]
-		RRMatrix1 <- long2matrix(formula(paste(lhs1[1],"~",actor.id,"*",partner.id,ifg(group.id))), data, verbose=verbose, skip3=TRUE, g.id=g.id)[[1]]
-		RRMatrix2 <- long2matrix(formula(paste(lhs1[2],"~",actor.id,"*",partner.id,ifg(group.id))), data, verbose=verbose, skip3=TRUE, g.id=g.id)[[1]]
-		RRMatrix3 <- long2matrix(formula(paste(lhs2[1],"~",actor.id,"*",partner.id,ifg(group.id))), data, verbose=verbose, skip3=TRUE, g.id=g.id)[[1]]
-		RRMatrix4 <- long2matrix(formula(paste(lhs2[2],"~",actor.id,"*",partner.id,ifg(group.id))), data, verbose=verbose, skip3=TRUE, g.id=g.id)[[1]]
+		RRMatrix1 <- long2matrix(formula(paste(lhs1[1],"~",actor.id,"*",partner.id,ifg(group.id))), data, verbose=verbose, minData=minData, skip3=TRUE, g.id=g.id)[[1]]
+		RRMatrix2 <- long2matrix(formula(paste(lhs1[2],"~",actor.id,"*",partner.id,ifg(group.id))), data, verbose=verbose, minData=minData, skip3=TRUE, g.id=g.id)[[1]]
+		RRMatrix3 <- long2matrix(formula(paste(lhs2[1],"~",actor.id,"*",partner.id,ifg(group.id))), data, verbose=verbose, minData=minData, skip3=TRUE, g.id=g.id)[[1]]
+		RRMatrix4 <- long2matrix(formula(paste(lhs2[2],"~",actor.id,"*",partner.id,ifg(group.id))), data, verbose=verbose, minData=minData, skip3=TRUE, g.id=g.id)[[1]]
 		analysis <- "latent"
 	}
 } else {stop("Error: Unknown term in formula.")}
