@@ -1,4 +1,18 @@
 #------------------------------------------------------------
+# ---- Changes in TripleR version 0.5.1  ----------------------
+#------------------------------------------------------------
+
+BUG FIXES
+
+- self ratings are now correctly centered
+
+MINOR IMPROVEMENTS/ CHANGES
+
+- updated vignette with sections on missing values and installation of R
+- Handling of multiple groups now is more robust in cases where some groups contained self ratings and others do not
+
+
+#------------------------------------------------------------
 # ---- Changes in TripleR version 0.5  ----------------------
 #------------------------------------------------------------
 

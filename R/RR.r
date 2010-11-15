@@ -81,7 +81,8 @@ long2matrix <- function(formule, data, minData=1, verbose=TRUE, reduce=TRUE, ski
 	var.id <- lhs
 	actor.id <- rhs[1]
 	partner.id <- rhs[2]
-	if (length(rhs)>=3) {group.id <- rhs[3]} else {group.id=NULL}
+	group.id <- NULL
+	if (length(rhs)>=3) {group.id <- rhs[3]}
 	
 	# What are the group ids?
 	# if only one group, add group variable
@@ -92,7 +93,7 @@ long2matrix <- function(formule, data, minData=1, verbose=TRUE, reduce=TRUE, ski
 	} else {
 		if (!is.null(g.id)) {
 			group.id <- g.id
-			group.ids <- names(table(data[,group.id]))
+			group.ids <- levels(factor(data[,group.id]))
 		} else {
 			group.ids <- "1"
 			group.id <- "group.id"
@@ -132,7 +133,7 @@ long2matrix <- function(formule, data, minData=1, verbose=TRUE, reduce=TRUE, ski
 			
 			
 		if (length(p2) <= 1) {
-			warning(paste("Warning: The provided data of group",g,"are not in round robin format!"));
+			warning(paste("Warning: The provided data of group",g,"are not in round robin format!"), call.=FALSE);
 			next();
 		}
 			
@@ -180,7 +181,7 @@ long2matrix <- function(formule, data, minData=1, verbose=TRUE, reduce=TRUE, ski
 			}
 		}
 		if (skip3 & nrow(box)<=3) {
-			warning(paste("WARNING: group",g,"has 3 or fewer subjects. For calculation of SRM variables minimum group size is 4 - the group is excluded from the analyses"));
+			warning(paste("WARNING: group",g,"has 3 or fewer subjects. For calculation of SRM variables minimum group size is 4 - the group is excluded from the analyses"), call.=FALSE);
 		}
 	
 	}
@@ -357,8 +358,12 @@ RR.effects <- function(RRMatrix, name=NA, na.rm=FALSE) {
 	}
 	
 	# return effects also in long format
+	
 	if (!is.null(attr(RRMatrix, "self.ratings"))) {
-		eff <- data.frame(id = rownames(RRMatrix), actor=a, partner=b, self=attr(RRMatrix, "self.ratings")-mpp)
+		
+		self.centered <- attr(RRMatrix, "self.ratings")-mean(attr(RRMatrix, "self.ratings"), na.rm=TRUE)
+		
+		eff <- data.frame(id = rownames(RRMatrix), actor=a, partner=b, self=self.centered)
 		if (!is.null(name)) {colnames(eff)[2:4] <- paste(name, localOptions$suffixes, sep="")}
 	} else {
 		eff <- data.frame(id = rownames(RRMatrix), actor=a, partner=b)
@@ -379,13 +384,14 @@ RR.effects <- function(RRMatrix, name=NA, na.rm=FALSE) {
 	
 	eff.gm <- eff
 	if (!is.null(attr(RRMatrix, "self.ratings"))) {
-		eff.gm[,2:4] <- eff.gm[,2:4]+mpp
+		eff.gm[,2:3] <- eff.gm[,2:3]+mpp
+		eff.gm[,4] <- attr(RRMatrix, "self.ratings")
 	} else {
 		eff.gm[,2:3] <- eff.gm[,2:3]+mpp
 	}
 	
 	if (!is.null(attr(RRMatrix, "self.ratings"))) {
-		return(list(actor = a, partner = b, relationship = c, eff=eff, effRel=effRel, eff.gm=eff.gm, self=attr(RRMatrix, "self.ratings")-mpp))
+		return(list(actor = a, partner = b, relationship = c, eff=eff, effRel=effRel, eff.gm=eff.gm, self=self.centered))
 	} else {
 		return(list(actor = a, partner = b, relationship = c, eff=eff, effRel=effRel, eff.gm=eff.gm))
 		}
@@ -401,7 +407,7 @@ RR.univariate <- function(RRMatrix, na.rm=FALSE, verbose=TRUE, corr.fac="1") {
 	if (is.null(RRMatrix)) return();
 	
 	if (nrow(RRMatrix)<4) {
-		warning(paste("WARNING: group",attr(RRMatrix, "group.id"),"has 3 or fewer subjects. For calculation of SRM variables minimum group size is 4."));
+		warning(paste("WARNING: group",attr(RRMatrix, "group.id"),"has 3 or fewer subjects. For calculation of SRM variables minimum group size is 4."), call.=FALSE);
 		return();
 	}
 	
@@ -778,64 +784,66 @@ ifg <- function(g) {
 # Wrapper function: depending on parameters, different results are calculated:
 RR <- function(formula, data, na.rm=FALSE, minData = 1, verbose=TRUE, g.id=NULL) {
 
-# set default
-analysis <- "manifest"
-RRMatrix2 <- RRMatrix3 <- RRMatrix4 <- NULL
+	# set default
+	analysis <- "manifest"
+	RRMatrix2 <- RRMatrix3 <- RRMatrix4 <- NULL
 
-# transform long format (formula) to quadratic matrices
-if (is.null(data)) stop("If a formula is specified, an explicit data object has to be provided!");
+	# transform long format (formula) to quadratic matrices
+	if (is.null(data)) stop("If a formula is specified, an explicit data object has to be provided!");
 
-#remove spaces from formula
-f1 <- formula
-lhs <- strsplit(gsub(" ","",as.character(f1)[2], fixed=TRUE), "+", fixed=TRUE)[[1]]
-rhs <- strsplit(gsub(" ","",as.character(f1)[3], fixed=TRUE),"\\*|\\|", perl=TRUE)[[1]]
+	#remove spaces from formula
+	f1 <- formula
+	lhs <- strsplit(gsub(" ","",as.character(f1)[2], fixed=TRUE), "+", fixed=TRUE)[[1]]
+	rhs <- strsplit(gsub(" ","",as.character(f1)[3], fixed=TRUE),"\\*|\\|", perl=TRUE)[[1]]
 
-actor.id <- rhs[1]
-partner.id <- rhs[2]
-if (length(rhs)>=3) {group.id <- rhs[3]} else {group.id=NULL}
-
-
-# if a grouping factor is provided: forward to RR.multi
-if (!is.null(group.id)) {
-	return(RR.multi(f1, data=data, na.rm=na.rm, verbose=verbose));
-}
+	actor.id <- rhs[1]
+	partner.id <- rhs[2]
+	if (length(rhs)>=3) {group.id <- rhs[3]} else {group.id=NULL}
 
 
-
-# univariater Fall:
-if (length(lhs)==1) {
-	lhs1 <- strsplit(lhs, "/")[[1]]
-	
-	# manifester vs. latenter Fall
-	if (length(lhs1)==1) {
-		RRMatrix1 <- long2matrix(formula(paste(lhs1,"~",actor.id,"*",partner.id,ifg(group.id))), data, verbose=verbose, minData=minData, skip3=TRUE, g.id=g.id)[[1]]
-		analysis <- "manifest"
-	} else if (length(lhs1)==2) {
-		RRMatrix1 <- long2matrix(formula(paste(lhs1[1],"~",actor.id,"*",partner.id,ifg(group.id))), data, verbose=verbose, minData=minData, skip3=TRUE, g.id=g.id)[[1]]
-		RRMatrix2 <- long2matrix(formula(paste(lhs1[2],"~",actor.id,"*",partner.id,ifg(group.id))), data, verbose=verbose, minData=minData, skip3=TRUE, g.id=g.id)[[1]]
-		analysis <- "latent"
+	# if a grouping factor is provided: forward to RR.multi
+	if (!is.null(group.id)) {
+		return(RR.multi(f1, data=data, na.rm=na.rm, verbose=verbose));
 	}
+
+
+
+	# univariater Fall:
+	if (length(lhs)==1) {
+		lhs1 <- strsplit(lhs, "/")[[1]]
 	
-} else 
-# bivariater Fall
-if (length(lhs)==2) {
+		# manifester vs. latenter Fall
+		if (length(lhs1)==1) {
+			RRMatrix1 <- long2matrix(formula(paste(lhs1,"~",actor.id,"*",partner.id,ifg(group.id))), data, verbose=verbose, minData=minData, skip3=TRUE, g.id=g.id)[[1]]
+			analysis <- "manifest"
+		} else if (length(lhs1)==2) {
+			RRMatrix1 <- long2matrix(formula(paste(lhs1[1],"~",actor.id,"*",partner.id,ifg(group.id))), data, verbose=verbose, minData=minData, skip3=TRUE, g.id=g.id)[[1]]
+			RRMatrix2 <- long2matrix(formula(paste(lhs1[2],"~",actor.id,"*",partner.id,ifg(group.id))), data, verbose=verbose, minData=minData, skip3=TRUE, g.id=g.id)[[1]]
+			analysis <- "latent"
+		}
 	
-	lhs1 <- strsplit(lhs[1], "/")[[1]]
+	} else 
+	# bivariater Fall
+	if (length(lhs)==2) {
 	
-	# manifester vs. latenter Fall
-	if (length(lhs1)==1) {
-		RRMatrix1 <- long2matrix(formula(paste(lhs[1],"~",actor.id,"*",partner.id,ifg(group.id))), data, verbose=verbose, minData=minData, skip3=TRUE, g.id=g.id)[[1]]
-		RRMatrix2 <- long2matrix(formula(paste(lhs[2],"~",actor.id,"*",partner.id,ifg(group.id))), data, verbose=verbose, minData=minData, skip3=TRUE, g.id=g.id)[[1]]
-		analysis <- "manifest"
-	} else if (length(lhs1)==2) {
-		lhs2 <- strsplit(lhs[2], "/")[[1]]
-		RRMatrix1 <- long2matrix(formula(paste(lhs1[1],"~",actor.id,"*",partner.id,ifg(group.id))), data, verbose=verbose, minData=minData, skip3=TRUE, g.id=g.id)[[1]]
-		RRMatrix2 <- long2matrix(formula(paste(lhs1[2],"~",actor.id,"*",partner.id,ifg(group.id))), data, verbose=verbose, minData=minData, skip3=TRUE, g.id=g.id)[[1]]
-		RRMatrix3 <- long2matrix(formula(paste(lhs2[1],"~",actor.id,"*",partner.id,ifg(group.id))), data, verbose=verbose, minData=minData, skip3=TRUE, g.id=g.id)[[1]]
-		RRMatrix4 <- long2matrix(formula(paste(lhs2[2],"~",actor.id,"*",partner.id,ifg(group.id))), data, verbose=verbose, minData=minData, skip3=TRUE, g.id=g.id)[[1]]
-		analysis <- "latent"
-	}
-} else {stop("Error: Unknown term in formula.")}
+		lhs1 <- strsplit(lhs[1], "/")[[1]]
+	
+		# manifester vs. latenter Fall
+		if (length(lhs1)==1) {
+			
+			RRMatrix1 <- long2matrix(formula(paste(lhs[1],"~",actor.id,"*",partner.id,ifg(group.id))), data, verbose=verbose, minData=minData, skip3=TRUE, g.id=g.id)[[1]]
+			
+			RRMatrix2 <- long2matrix(formula(paste(lhs[2],"~",actor.id,"*",partner.id,ifg(group.id))), data, verbose=verbose, minData=minData, skip3=TRUE, g.id=g.id)[[1]]
+			analysis <- "manifest"
+		} else if (length(lhs1)==2) {
+			lhs2 <- strsplit(lhs[2], "/")[[1]]
+			RRMatrix1 <- long2matrix(formula(paste(lhs1[1],"~",actor.id,"*",partner.id,ifg(group.id))), data, verbose=verbose, minData=minData, skip3=TRUE, g.id=g.id)[[1]]
+			RRMatrix2 <- long2matrix(formula(paste(lhs1[2],"~",actor.id,"*",partner.id,ifg(group.id))), data, verbose=verbose, minData=minData, skip3=TRUE, g.id=g.id)[[1]]
+			RRMatrix3 <- long2matrix(formula(paste(lhs2[1],"~",actor.id,"*",partner.id,ifg(group.id))), data, verbose=verbose, minData=minData, skip3=TRUE, g.id=g.id)[[1]]
+			RRMatrix4 <- long2matrix(formula(paste(lhs2[2],"~",actor.id,"*",partner.id,ifg(group.id))), data, verbose=verbose, minData=minData, skip3=TRUE, g.id=g.id)[[1]]
+			analysis <- "latent"
+		}
+	} else {stop("Error: Unknown term in formula.")}
 	
 
 
@@ -857,8 +865,12 @@ if (length(lhs)==2) {
 
 	if (is.null(RRMatrix3) & is.null(RRMatrix4)) {
 		
+		if (is.null(RRMatrix1) | is.null(RRMatrix2)) {
+			warning("Error: One of both round robin matrices has to few participants!", call.=FALSE)
+			return();
+		}
 		res <- RR.bivariate(RRMatrix1, RRMatrix2, analysis=analysis, na.rm=na.rm, verbose=verbose)
-		return(res)
+		return(res);
 	}
 	
 	
@@ -918,6 +930,8 @@ if (length(lhs)==2) {
 		grandres$anal.type <- "Bivariate analysis of two constructs, each measured by two round robin variables"
 		attr(grandres, "group.size") <- nrow(RRMatrix2)
 		return(grandres)		
+	} else {
+		stop("Error: One of the round robin matrices has to few participants!", call.=FALSE)
 	}
 	
 	# if no condition above had a hit: error
@@ -959,7 +973,7 @@ weighted.t.test <- function(x, w, mu, conf.level = 0.95, alternative="two.sided"
 	
 	# if only one value is present: this is the best estimate, no significance test provided
 	if (sum(!is.na(x)) == 1) {
-		warning("Warning weighted.t.test: only one value provided; this value is returned without test of significance!")
+		warning("Warning weighted.t.test: only one value provided; this value is returned without test of significance!", call.=FALSE)
 		return(list(estimate=x[which(!is.na(x))], se=NA, conf.int=NA, statistic=NA, df=NA, p.value=NA))
 	}
 	
@@ -1106,13 +1120,10 @@ RR.multi.uni <- function(formule, data, na.rm=FALSE, verbose=TRUE) {
 	fstring <- paste(as.character(formule)[c(2,1,3)], collapse=" ")
 	f0 <- strsplit(gsub(" ","",fstring, fixed=TRUE),"\\|", perl=TRUE)[[1]]
 	f1 <- formula(f0[1])
+	f3 <- strsplit(strsplit(gsub(" ","",fstring, fixed=TRUE),"~", perl=TRUE)[[1]][1], "+", fixed=TRUE)[[1]]
 	group.id <- f0[2]
 
-	# Vorlage für die Varianzkomponente erstellen
-	df <- data[data[,group.id]==data[1,group.id],]
-	RR0 <- RR(f1, data=df, verbose=FALSE, na.rm=na.rm)
-
-	mode <- ifelse(length(RR0$univariate)==2,"bi","uni")
+	mode <- ifelse(length(f3)==2,"bi","uni")
 		
 	res <- data.frame()
 	res.bi <- data.frame()
@@ -1137,14 +1148,20 @@ RR.multi.uni <- function(formule, data, na.rm=FALSE, verbose=TRUE) {
 		
 		g.uni[[g]]$group.id <- g.id
 		RR0$effects$group.id <- g.id
-		effect <- rbind(effect, RR0$effects)
+		
+		if (nrow(effect) == 0) {
+			cs <- colnames(RR0$effects)
+		} else {
+			cs <- intersect(colnames(effect), colnames(RR0$effects))
+		}
+		effect <- rbind(effect, RR0$effects[,cs])
 
 		RR0$effectsRel$group.id <- g.id
 		effectRel <- rbind(effectRel, RR0$effectsRel)
 
 		if (RR0$latent==FALSE) {
 			RR0$effects.gm$group.id <- g.id
-			eff.gm <- rbind(eff.gm, RR0$effects.gm)
+			eff.gm <- rbind(eff.gm, RR0$effects.gm[,cs])
 		} else {
 			eff.gm <- list(relationship=NA)
 		}
@@ -1440,9 +1457,9 @@ RR.multi <- function(formule, data, na.rm=FALSE, verbose=TRUE) {
 
 	# Vorlage für die Varianzkomponente erstellen
 	df <- data[data[,group.id]==data[1,group.id],]
-	RR0 <- RR(f1, data=df, verbose=FALSE, na.rm=na.rm)
+	#RR0 <- RR(f1, data=df, verbose=FALSE, na.rm=na.rm)
 
-	mode <- ifelse(length(RR0$univariate)==2,"bi","uni")
+	mode <- ifelse(length(f3)==2,"bi","uni")
 
 
 
@@ -1459,6 +1476,8 @@ RR.multi <- function(formule, data, na.rm=FALSE, verbose=TRUE) {
 	bi.groups <- list()
 	
 	for (g in names(table(data[,group.id]))) {
+		
+			#print(g)
 		
 			RR0 <- RR(f1, data=data[data[,group.id] == g,], verbose=FALSE, na.rm=na.rm)
 			
@@ -1540,7 +1559,7 @@ print.uni <- function(x, ..., measure=NA, digits=3, r.names=NULL) {
 		if (measure == "behavior") rownames(uni) <- unilabels_b
 		if (measure == "perception") rownames(uni) <- unilabels_p
 		if (measure == "metaperception") {
-			warning("Warning: the current RR-object only consists of a single variable. Labels for metaperception are only provided when two variables are specified.")
+			warning("Warning: the current RR-object only consists of a single variable. Labels for metaperception are only provided when two variables are specified.", call.=FALSE)
 			rownames(uni) <- unilabels_b
 		}
 	}

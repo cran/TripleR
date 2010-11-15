@@ -3,7 +3,7 @@ Package: TripleR
 Type: Package
 Title: Social Relation Model (SRM) analyses for single or multiple
         round-robin groups
-Version: 0.5
+Version: 0.5.1
 Date: 2010-11-15
 Author: S.C. Schmukle, F.D. Schönbrodt and M.D. Back
 Maintainer: Felix Schönbrodt <felix@nicebread.de>
@@ -20,6 +20,6 @@ Description: Social Relation Model (SRM) analyses for single or
         handling for missing values is provided.
 License: GPL (>= 2)
 LazyLoad: yes
-Packaged: 2010-11-15 09:26:46 UTC; Felix
+Packaged: 2010-11-23 14:41:33 UTC; Felix
 Repository: CRAN
-Date/Publication: 2010-11-15 10:56:11
+Date/Publication: 2010-11-23 16:28:17
