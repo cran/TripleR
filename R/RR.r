@@ -181,7 +181,9 @@ long2matrix <- function(formule, data, minData=1, verbose=TRUE, reduce=TRUE, ski
 			}
 		}
 		if (skip3 & nrow(box)<=3) {
-			warning(paste("WARNING: group",g,"has 3 or fewer subjects. For calculation of SRM variables minimum group size is 4 - the group is excluded from the analyses"), call.=FALSE);
+			if (verbose) {
+				warning(paste("WARNING: group",g,"has 3 or fewer subjects. For calculation of SRM variables minimum group size is 4 - the group is excluded from the analyses"), call.=FALSE);
+			}
 		}
 	
 	}
@@ -301,7 +303,7 @@ impute <- function(RRMatrix, na.rm="meansNA", stress.max = 0.01, maxIt=100) {
 		it <- it + 1
 		
 		if (it > maxIt) {
-			warning("Maximum iterations exceeded; fall back to single imputation.")
+			warning("Maximum iterations exceeded; fall back to single imputation.", call.=FALSE)
 			return(impute(RRMatrix2, paste(na.rm,"1",sep="")))
 		}
 		
@@ -374,13 +376,14 @@ RR.effects <- function(RRMatrix, name=NA, na.rm=FALSE) {
 	
 	effRel <- melt(c)
 	effRel <- effRel[apply(effRel, 1, function(x) {x[1] != x[2]}),]
-	colnames(effRel) <- c("actor.id", "partner.id","relationship")
+	colnames(effRel) <- c("actor.id", "partner.id", "relationship")
 	
 	# sort releffects according to dyad
-	#digits <- floor(log10(n))+1
-	#effRel$dyad <- apply(effRel, 1, function(x) paste(f2(min(x[1], x[2]), digits), f2(max(x[1], x[2]), digits), sep="_"))
-	#effRel <- effRel[,c(1,2,4,3)]
-	#effRel <- effRel[order(effRel$dyad, effRel$actor.id),]
+	digits <- floor(log10(n))+1
+	effRel$dyad <- apply(effRel, 1, function(x) paste(sort(x[1:2], decreasing=FALSE), collapse="_"))
+	effRel <- effRel[,c(1,2,4,3)]
+	effRel <- effRel[order(effRel$dyad, effRel$actor.id),]
+	
 	
 	eff.gm <- eff
 	if (!is.null(attr(RRMatrix, "self.ratings"))) {
@@ -416,12 +419,26 @@ RR.univariate <- function(RRMatrix, na.rm=FALSE, verbose=TRUE, corr.fac="1") {
 	if ((sum(is.na(RRMatrix)) > nrow(RRMatrix)) & na.rm==FALSE)
 		stop("There are NAs outside the diagonale. Calculations are aborted.")
 		
-	if ((sum(is.na(RRMatrix)) > nrow(RRMatrix)) & na.rm==TRUE) {
-		#warning("Note: There are NAs outside the diagonale. Degrees of freedom in Kenny's (1994) formula are adjusted for missings. THIS IS EXPERIMENTAL AND NOT THOROUGHLY TESTED. Maybe you should think about imputation procedures to obtain a complete matrix.")
+	n <- nrow(RRMatrix)	
+	n.NA <- sum(is.na(RRMatrix)) - n
+	
+	
+	## Warning if too many missings are present
+	if (n.NA > 0 & na.rm==TRUE) {
+		wa <- FALSE
+		if (n==4 & n.NA > 0 & verbose) {wa <- TRUE}
+		if (n==5 & n.NA > 1 & verbose) {wa <- TRUE}
+		if (n==6 & n.NA > 2 & verbose) {wa <- TRUE}
+		if (n %in% c(6,7) & n.NA > 2 & verbose) {wa <- TRUE}
+		if (n>7 & n < 20 & (n.NA/(n^2-n)) > .10 & verbose) {wa <- TRUE}
+		if (n>=20 & (n.NA/(n^2-n)) > .20 & verbose) {wa <- TRUE}
+		
+		if (wa) {
+			warning(paste("Note: The number of missing values (n.NA=",n.NA,"; ",round((n.NA/(n^2-n))*100, 1),"%) in group ",attr(RRMatrix, "group.id")," exceeds the recommended maximum number of missings according to Schoenbrodt, Back, & Schmukle (in prep.). Estimates might be biased.", sep=""), call.=FALSE)
+		}
 	}
 	
 	eff <- RR.effects(RRMatrix, name=attr(RRMatrix, "varname"), na.rm=na.rm)
-	n <- nrow(RRMatrix)
 	
 	A <- sum(eff$actor^2)/(n-1)
 	B <- sum(eff$partner^2)/(n-1)
@@ -516,7 +533,7 @@ RR.univariate <- function(RRMatrix, na.rm=FALSE, verbose=TRUE, corr.fac="1") {
 	if (scc <= 0) {univariate[6,3:6] <- NaN}
 
 
-	res <- list(effects = eff$eff, effectsRel = eff$effRel, effects.gm = eff$eff.gm, varComp = univariate, relMat.av=e, relMat.diff=d, group.size=n, latent=FALSE, anal.type="Univariate analysis of one round robin variable")
+	res <- list(effects = eff$eff, effectsRel = eff$effRel, effects.gm = eff$eff.gm, varComp = univariate, relMat.av=e, relMat.diff=d, group.size=n, latent=FALSE, anal.type="Univariate analysis of one round robin variable", n.NA = n.NA)
 	class(res) <- "RRuni"
 	attr(res, "group.size") <- n
 	attr(res, "varname") <- attr(RRMatrix, "varname")
@@ -534,14 +551,41 @@ RR.bivariate <- function(RRMatrix1, RRMatrix2, analysis="manifest", na.rm=FALSE,
 	
 	if (!(analysis %in% c("latent", "manifest"))) stop("Parameter 'analysis' must either be 'latent' or 'manifest'. Calculations aborted.")
 	
+	
+	dif1 <- union(setdiff(rownames(RRMatrix1), rownames(RRMatrix2)), setdiff(rownames(RRMatrix2), rownames(RRMatrix1)))
+	if (length(dif1)>0) {
+		warning(paste("Following participant(s) have been excluded from the bivariate analysis because of missing data in one of the variables:",dif1), call.=FALSE)
+	}
+	
+	# Clean up data: only participants are allowed that are in BOTH matrices
+	allparticipants <- intersect(rownames(RRMatrix1), rownames(RRMatrix2))
+	
+	a1 <- attributes(RRMatrix1)
+	a1$self.ratings <- a1$self.ratings[allparticipants]
+	a1$dimnames <- NULL
+	a2 <- attributes(RRMatrix2)
+	a2$self.ratings <- a2$self.ratings[allparticipants]
+	a2$dimnames <- NULL
+	a1$dim <- rep(length(allparticipants), 2)
+	a2$dim <- rep(length(allparticipants), 2)
+
+	RRMatrix1 <- RRMatrix1[allparticipants,allparticipants]
+	RRMatrix2 <- RRMatrix2[allparticipants,allparticipants]
+	dimn <- rownames(RRMatrix1)
+	attributes(RRMatrix1) <- a1
+	attributes(RRMatrix2) <- a2
+	rownames(RRMatrix1) <- rownames(RRMatrix2) <- colnames(RRMatrix1) <- colnames(RRMatrix2) <- dimn
+	
+	
 	RR.1 <- RR.univariate(RRMatrix1, na.rm, verbose)
 	RR.2 <- RR.univariate(RRMatrix2, na.rm, verbose)	
 	varComp.1 <- RR.1$varComp$estimate
 	varComp.2 <- RR.2$varComp$estimate
 	n <- nrow(RRMatrix1)
+	
+	
 
 	#Bivariate Relationships
-
 	A <- sum(RR.1$effects[,2]*RR.2$effects[,2])/(n-1)
 	B <- sum(RR.1$effects[,2]*RR.2$effects[,3])/(n-1)
 	C <- sum(RR.1$effects[,3]*RR.2$effects[,2])/(n-1)
@@ -866,7 +910,7 @@ RR <- function(formula, data, na.rm=FALSE, minData = 1, verbose=TRUE, g.id=NULL)
 	if (is.null(RRMatrix3) & is.null(RRMatrix4)) {
 		
 		if (is.null(RRMatrix1) | is.null(RRMatrix2)) {
-			warning("Error: One of both round robin matrices has to few participants!", call.=FALSE)
+			if (verbose) {warning("Error: One of both round robin matrices has to few participants!", call.=FALSE)}
 			return();
 		}
 		res <- RR.bivariate(RRMatrix1, RRMatrix2, analysis=analysis, na.rm=na.rm, verbose=verbose)
@@ -1140,7 +1184,7 @@ RR.multi.uni <- function(formule, data, na.rm=FALSE, verbose=TRUE) {
 		
 		#print(g)
 		
-		RR0 <- RR(f1, data=data[data[,group.id] == g,], verbose=FALSE, na.rm=na.rm, g.id=group.id)
+		RR0 <- RR(f1, data=data[data[,group.id] == g,], verbose=verbose, na.rm=na.rm, g.id=group.id)
 		g.id <- g
 
 		if (is.null(RR0)) {next;} else
@@ -1317,21 +1361,21 @@ plot.RRmulti <- function(x, ..., measure=NA, geom="scatter", conf.level=0.95, co
 		grouplevel$type2 <- factor(grouplevel$type, levels=unilabels_b, labels=lab)
 		grouplevel$tcrit <- abs(qt((1-conf.level)/2,length(RRm$groups)-1))
 
-		p1 <- ggplot(df, aes(y=estimate))
+		p1 <- ggplot(df, aes(y=estimate), na.rm=TRUE)
 
-		p1 <- p1 + geom_point(aes(x=(as.numeric(type)+jit.x), size=group.size), alpha=0.6, color="grey60") + scale_size("Group size", to=c(3,8))
+		p1 <- p1 + geom_point(aes(x=(as.numeric(type)+jit.x), size=group.size), alpha=0.6, color="grey60", na.rm=TRUE) + scale_size("Group size", to=c(3,8))
 	
-		p1 <- p1 + geom_point(aes(x=(as.numeric(type)+jit.x)), alpha=0.8, color="black", size=0.7)
+		p1 <- p1 + geom_point(aes(x=(as.numeric(type)+jit.x)), alpha=0.8, color="black", size=0.7, na.rm=TRUE)
 		
 		p1 <- p1 + scale_x_discrete()
 		
-		p1 <- p1 + geom_pointrange(data=grouplevel, aes(x=type2, y=estimate, ymin=estimate-tcrit*se, ymax=estimate+tcrit*se), color="darkgreen", size=1.1)
+		p1 <- p1 + geom_pointrange(data=grouplevel, aes(x=type2, y=estimate, ymin=estimate-tcrit*se, ymax=estimate+tcrit*se), color="darkgreen", size=1.1, na.rm=TRUE)
 		
 		
 	
 		# lines connecting the points (may be very cluttered)
 		if (connect==TRUE) {
-			p1 <- p1 +geom_line(data=df[as.numeric(df$type) <= 3,], aes(x=(as.numeric(type)+jit.x), y=estimate, group=group.id), color="grey40", alpha=0.7)
+			p1 <- p1 +geom_line(data=df[as.numeric(df$type) <= 3,], aes(x=(as.numeric(type)+jit.x), y=estimate, group=group.id), color="grey40", alpha=0.7, na.rm=TRUE)
 		}
 
 	
@@ -1360,7 +1404,7 @@ plot.RRmulti <- function(x, ..., measure=NA, geom="scatter", conf.level=0.95, co
 		
 		df3 <- na.omit(df)
 		
-		p2 <- ggplot(df3[as.numeric(df3$type)<=3,], aes(x=group.id, y=standardized, fill=as.character(gsub("\n", " ", type, fixed=TRUE)))) + geom_bar(aes(width=group.size))
+		p2 <- ggplot(df3[as.numeric(df3$type)<=3,], aes(x=group.id, y=standardized, fill=as.character(gsub("\n", " ", type, fixed=TRUE)))) + geom_bar(aes(width=group.size), na.rm=TRUE)
 		p2 <- p2 + scale_fill_discrete("Variance Component") + ylab("Standardized variances")
 		
 		if (mode=="bi") {p2 <- p2 + facet_wrap(~variable)}
@@ -1401,7 +1445,7 @@ plot.RRuni <- function(x, ..., measure=NA, geom="bar") {
 	df$type2 <- lab
 	df$standardized[is.na(df$standardized)] <- 0
 	
-	p1 <- ggplot(df[df$type2 %in% lab[1:3],], aes(x=factor(1), y=standardized, fill=as.character(type2))) + geom_bar(stat="identity") + scale_fill_discrete("Variance Component") + xlab("") + ylab("Standardized variance component")
+	p1 <- ggplot(df[df$type2 %in% lab[1:3],], aes(x=factor(1), y=standardized, fill=as.character(type2))) + geom_bar(stat="identity", na.rm=TRUE) + scale_fill_discrete("Variance Component") + xlab("") + ylab("Standardized variance component")
 	
 	if (geom=="pie") p1 <- p1 + coord_polar(theta="y")
 	
@@ -1427,7 +1471,7 @@ plot_missings <- function(formule, data, show.ids=TRUE) {
 	m1[,f0[2]] <- factor(m1[,f0[2]], ordered=TRUE)
 	m1[,f0[3]] <- factor(m1[,f0[3]])
 	
-	p2 <- ggplot(m1, aes_string(x=f0[3], y=f0[2])) + geom_point(aes(color=value2)) + facet_wrap(~L1, scales="free")
+	p2 <- ggplot(m1, aes_string(x=f0[3], y=f0[2])) + geom_point(aes(color=value2), na.rm=TRUE) + facet_wrap(~L1, scales="free")
 	p2 <- p2 + scale_colour_identity("Missing?", breaks=c(0,1), labels=c("yes", "no"), legend=TRUE) 
 	
 	p2 <- p2 + opts(axis.text.x = theme_text(angle = 90, hjust=1, size=7), axis.text.y = theme_text(hjust=1, size=7), title="Missing values", aspect.ratio=1)
@@ -1545,6 +1589,12 @@ print.RRbi <- function(x, ...) {
 	print.RR(x, ...)
 }
 
+# simple wrapper: formats a number in f.2 format
+f2 <- function(x, digits=3) {
+	gsub("0.", ".", formatC(x, format="f", digits=digits), fixed=TRUE)
+}
+
+
 # x muss hier direkt auf das univariate-Objekt verweisen
 print.uni <- function(x, ..., measure=NA, digits=3, r.names=NULL) {
 	uni <- round(x$varComp[,2:ncol(x$varComp)], digits)
@@ -1568,13 +1618,13 @@ print.uni <- function(x, ..., measure=NA, digits=3, r.names=NULL) {
 	
 	
 	# Actor effect reliability
-	if (!is.null(x$effects[,2])) print(paste(role[[measure]][1], "effect reliability:",round(attr(x$effects[,2], "reliability"), 3)))
+	if (!is.null(x$effects[,2])) print(paste(role[[measure]][1], "effect reliability:",f2(attr(x$effects[,2], "reliability"), 3)))
 	
 	# Partner effect reliability
-	if (!is.null(x$effects[,3])) print(paste(role[[measure]][2], "effect reliability:",round(attr(x$effects[,3], "reliability"), 3)))
+	if (!is.null(x$effects[,3])) print(paste(role[[measure]][2], "effect reliability:",f2(attr(x$effects[,3], "reliability"), 3)))
 	
 	# Relationship effect reliability
-	if (!is.null(attr(x$effectsRel$relationship, "reliability"))) print(paste(role[[measure]][3], "effect reliability:",round(attr(x$effectsRel$relationship, "reliability"), 3)))
+	if (!is.null(attr(x$effectsRel$relationship, "reliability"))) print(paste(role[[measure]][3], "effect reliability:",f2(attr(x$effectsRel$relationship, "reliability"), 3)))
 	
 	# if (any(uni[1:2,2]<0.10) | any(is.na(uni[1:2,2]))) print(paste("Warning:",rownames(uni)[5],"should NOT be interpreted if standardized actor or partner variance is < 10%!"))
 	# if (uni[3,2]<0.10 | is.na(uni[3,2])) print(paste("Warning:",rownames(uni)[6],"should NOT be interpreted if standardized relationship variance is < 10%!"))

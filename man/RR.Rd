@@ -28,7 +28,7 @@ RR(formula, data, na.rm=FALSE, minData=1, verbose=TRUE, g.id=NULL)
 \item{g.id}{For internal use only; do not set this parameter}
 }
 \details{
-Please note: detailed instructions on how to use the TripleR package are provided in the vignette. You can open this pdf file by typing \code{vignette("TripleR")} into the R prompt. These help files are only for quick references.
+Please note: detailed instructions on how to use the TripleR package are provided in the built in pdf document `How to use TripleR'. You can open this document either by on this link: \url{../doc/TripleR.pdf}, or you can browse all included vignettes by opening the index of the package documentation (scroll down to the very end of this page and click on `Index'; than click on `Overview of user guides and package vignettes'). These help files are only for quick references.
 
 The estimation of the parameters of the Social Relation Model (SRM) is based on formulae provided by Kenny (1994; p. 236-244). For tests of significance of a single group, Triple R computes standard errors by using formulae published by Bond and Lashley (1996) for the case of a univariate SRM analysis. The formulae for the standard errors of the bivariate SRM parameters were kindly provided to us by C.F. Bond in personal communication. If multiple groups are provided, by default a between-group t-test is employed to calculate the significance. If you have very few groups with a considerable size (n>15), even in the multi group scenario it might be preferable to use the within-group test of significance. You can inspect the within-group test of significance for each of the multiple groups in the return value (see \code{groups.univariate}).
 
@@ -41,12 +41,14 @@ Data sets from the Mainz Freshman Study (see Back, Schmukle, & Egloff, in press)
 The handling for missing data (\code{na.rm=TRUE}) is performed in two steps:
 \itemize{
 \item Rows and columns which have less then \code{minData} data points are removed from the matrix (i.e. both the `missing' row or column and the corresponding column or row, even if they have data in them)
-\item For the calculation of variance components and effects, missing values are imputed as the average of the respective row and col means. Relationship effects which were missing in the original data set then are set to NA again.
+\item For the calculation of actor and partner variances, actor-partner-covariances and the respective effects, missing values are imputed as the average of the respective row and col means. The calculation of relationship variances and covariances as well as relationship effects is also based on the imputed data set; however, single relationship effects which were missing in the original data set are set to missing again.
 }
 }
 
 \value{
-Printed are both unstandardized and standardized SRM estimates with the corresponding standard errors and t-values for actor variance, partner variance, relationship variance, error variance, actor-partner covariance, and relationship covariance. In case of a bivariate analysis values are additionally provided for actor-actor covariance, partner-partner covariance, actor-partner covariance, partner-actor covariance, intrapersonal relationship covariance, and interpersonal relationship covariance. In case of a latent SRM analysis standard errors and t-values are only printed for actor variance, partner variance, and relationship variance. Standard errors and t-values for the other parameters are not printed, because to our knowledge the corresponding formulae have not been developed yet. Therefore, we suggest using the t-values of the SRM analysis based on the mean of the two indicators by using a manifest SRM analysis.
+Printed are both unstandardized and standardized SRM estimates with the corresponding standard errors and t-values for actor variance, partner variance, relationship variance, error variance, actor-partner covariance, and relationship covariance. In case of a bivariate analysis values are additionally provided for actor-actor covariance, partner-partner covariance, actor-partner covariance, partner-actor covariance, intrapersonal relationship covariance, and interpersonal relationship covariance.
+
+Reliabilities of actor, partner, and relationship effects (the latter only in the case of latent analyses) are printed according to Bonito & Kenny (2010).
 
 The returned values depend on the kind of analyses that is performed:
 
@@ -58,7 +60,7 @@ Univariate, single group:
 \item{varComp}{variance components}
 
 Bivariate, single group:
-\item{univariate}{List of results of univariate of SRM analyses of both variables- specify variable in index: univariate[[1]] or univariate[[2]]. That means, each of the both \code{univariate} objects is a complete RR object for the univariate analyses, nested in the results objects. If you want to retrieve the effects for the first variable, you have to type \code{RR2\$univariate[[1]]\$effects}. If you want to retrieve the variance components, you have to type \code{RR2\$univariate[[1]]\$varComp}}
+\item{univariate}{List of results of univariate of SRM analyses of both variables- specify variable in index: univariate[[1]] or univariate[[2]]. That means, each of the both \code{univariate} objects is a complete RR object for the univariate analyses, nested in the results objects. If you want to retrieve the effects for the first variable, you have to type \code{RR2$univariate[[1]]$effects}. If you want to retrieve the variance components, you have to type \code{RR2$univariate[[1]]$varComp}}
 \item{bivariate}{Results of bivariate SRM analyses}
 
 
@@ -101,7 +103,7 @@ You can plot any RR object using \code{plot(RR)}. See \code{\link{plot.RRuni}} f
 \references{ 
 Back, M. D., Schmukle, S. C., & Egloff, B. (in press). From first sight to friendship: A longitudinal social relations analysis of stability and change in interpersonal attraction. \emph{European Journal of Personality}.
 
-Bonito, J. A., & Kenny, D. A. (2010). The measurement of reliability of social relations components from round-robin designs. Personal Relationships, 17, 235 - 251.
+Bonito, J. A., & Kenny, D. A. (2010). The measurement of reliability of social relations components from round-robin designs. \emph{Personal Relationships, 17}, 235 - 251.
 
 Kenny, D. A. (1994). \emph{Interpersonal perception: A social relations analysis}. New York: Guilford Press.
 
@@ -173,18 +175,14 @@ print(RR4, measure1="p", measure2="p")
 # ----  Multi group --------------------------------------
 #------------------------------------------------------------
 
-# a multi group data set with two variables:
-# ex = extraversion ratings, and ne = neurotizism ratings
-data("multiGroup")
-
-# Contains the liking data set (ee above) for multiple groups
+# Contains the liking data set (see above) for multiple groups
 data("multiLikingLong")
 
-#manifest univariate SRM analysis; set effects suffixes to "perceiver", "target", "self"
-RR1m <- RR(liking_a ~ actor.id*partner.id|group.id, data=multiLikingLong)
+# set RR.style to "perception" (affects subsequent printing of objects)
+RR.style("perception")
 
-#manifest univariate SRM analysis, data set with missings
-RR1m <- RR(ex~actor.id*partner.id|group.id, data=multiGroup, na.rm=TRUE)
+#manifest univariate SRM analysis
+RR1m <- RR(liking_a ~ actor.id*partner.id|group.id, data=multiLikingLong)
 
 #manifest bivariate SRM analysis
 RR2m <- RR(liking_a + metaliking_a ~ actor.id*partner.id|group.id, data=multiLikingLong)
@@ -202,6 +200,19 @@ print(RR1m, measure1="behavior")
 # prints output of the manifest univariate analysis 
 # in terms of perceiver and target variance (appropriate for perception data)
 print(RR1m, measure1="perception")
+
+
+#------------------------------------------------------------
+# ----  Multi group with missing values --------------------------------------
+#------------------------------------------------------------
+
+# a multi group data set with two variables:
+# ex = extraversion ratings, and ne = neurotizism ratings
+data("multiGroup")
+
+#manifest univariate SRM analysis, data set with missings
+RR1miss <- RR(ex~actor.id*partner.id|group.id, data=multiGroup, na.rm=TRUE)
+
 
 }
 

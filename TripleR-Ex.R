@@ -77,18 +77,14 @@ print(RR4, measure1="p", measure2="p")
 # ----  Multi group --------------------------------------
 #------------------------------------------------------------
 
-# a multi group data set with two variables:
-# ex = extraversion ratings, and ne = neurotizism ratings
-data("multiGroup")
-
-# Contains the liking data set (ee above) for multiple groups
+# Contains the liking data set (see above) for multiple groups
 data("multiLikingLong")
 
-#manifest univariate SRM analysis; set effects suffixes to "perceiver", "target", "self"
-RR1m <- RR(liking_a ~ actor.id*partner.id|group.id, data=multiLikingLong)
+# set RR.style to "perception" (affects subsequent printing of objects)
+RR.style("perception")
 
-#manifest univariate SRM analysis, data set with missings
-RR1m <- RR(ex~actor.id*partner.id|group.id, data=multiGroup, na.rm=TRUE)
+#manifest univariate SRM analysis
+RR1m <- RR(liking_a ~ actor.id*partner.id|group.id, data=multiLikingLong)
 
 #manifest bivariate SRM analysis
 RR2m <- RR(liking_a + metaliking_a ~ actor.id*partner.id|group.id, data=multiLikingLong)
@@ -106,6 +102,19 @@ print(RR1m, measure1="behavior")
 # prints output of the manifest univariate analysis 
 # in terms of perceiver and target variance (appropriate for perception data)
 print(RR1m, measure1="perception")
+
+
+#------------------------------------------------------------
+# ----  Multi group with missing values --------------------------------------
+#------------------------------------------------------------
+
+# a multi group data set with two variables:
+# ex = extraversion ratings, and ne = neurotizism ratings
+data("multiGroup")
+
+#manifest univariate SRM analysis, data set with missings
+RR1miss <- RR(ex~actor.id*partner.id|group.id, data=multiGroup, na.rm=TRUE)
+
 
 
 

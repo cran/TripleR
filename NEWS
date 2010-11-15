@@ -1,4 +1,13 @@
 #------------------------------------------------------------
+# ---- Changes in TripleR version 0.5.2  ----------------------
+#------------------------------------------------------------
+
+
+- Reliabilities are always printed with 3 decimals
+- Warnings about excluded groups and/or participants are more meaningful and cleaned up (double warnings should not occur anymore)
+- Increased reliability with many NAs (especially in latent analyses)
+
+#------------------------------------------------------------
 # ---- Changes in TripleR version 0.5.1  ----------------------
 #------------------------------------------------------------
 
