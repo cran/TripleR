@@ -127,12 +127,15 @@ long2matrix <- function(formule, data, minData=1, verbose=TRUE, reduce=TRUE, ski
 			delcol <- rownames(t1)[apply(t1, 2, sum, na.rm=TRUE)==0]
 			p2 <- setdiff(p, union(delrow, delcol))
 			
+			dels <- length(union(delrow, delcol))
+			if (dels > 0 & verbose) {warning(paste(dels,"participant(s) in group",g,"have been excluded due to exceedingly missing data."), call.=FALSE)}
+			
 		} else {
 			p2 <- union(levels(as.factor(block[,actor.id])), levels(as.factor(block[,partner.id])))
 		}
 			
 			
-		if (length(p2) <= 1) {
+		if (length(p2) <= 1 & verbose) {
 			warning(paste("Warning: The provided data of group",g,"are not in round robin format!"), call.=FALSE);
 			next();
 		}
@@ -319,10 +322,6 @@ impute <- function(RRMatrix, na.rm="meansNA", stress.max = 0.01, maxIt=100) {
 }
 
 
-# returns a numer as string with a fixed numer of characters and leading zeros, e.g. f2(2) = "01"
-f2 <- function(x, digits=2) {
-	sprintf(paste("%0",digits,"d", sep=""),x) 
-}
 
 
 # calculates Actor-, Partner- and Relationship-Effects from a single RR-Matrix
@@ -380,7 +379,8 @@ RR.effects <- function(RRMatrix, name=NA, na.rm=FALSE) {
 	
 	# sort releffects according to dyad
 	digits <- floor(log10(n))+1
-	effRel$dyad <- apply(effRel, 1, function(x) paste(sort(x[1:2], decreasing=FALSE), collapse="_"))
+	effRel$dyad <- factor(apply(effRel, 1, function(x) paste(sort(x[1:2], decreasing=FALSE), collapse="_")))
+	effRel$dyad <- factor(effRel$dyad, labels=f2(1:length(levels(effRel$dyad)), 0, paste("0",digits,sep="")))
 	effRel <- effRel[,c(1,2,4,3)]
 	effRel <- effRel[order(effRel$dyad, effRel$actor.id),]
 	
@@ -1590,8 +1590,8 @@ print.RRbi <- function(x, ...) {
 }
 
 # simple wrapper: formats a number in f.2 format
-f2 <- function(x, digits=3) {
-	gsub("0.", ".", formatC(x, format="f", digits=digits), fixed=TRUE)
+f2 <- function(x, digits=3, prepoint=0) {
+	gsub("0.", ".", sprintf(paste("%",prepoint,".",digits,"f",sep=""), x) , fixed=TRUE)
 }
 
 
