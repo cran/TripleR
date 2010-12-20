@@ -1,4 +1,17 @@
 #------------------------------------------------------------
+# ---- Changes in TripleR version 1.0  ----------------------
+#------------------------------------------------------------
+
+*As everything works now beautifully, we celebrate version 1.0!*
+
+#------------------------------------------------------------
+# ---- Changes in TripleR version 0.5.4  ----------------------
+#------------------------------------------------------------
+
+- renamed the labels of the dyads in the effectsRel variable: now each dyad has a unique id, which is important for subsequent APIM analyses
+
+
+#------------------------------------------------------------
 # ---- Changes in TripleR version 0.5.2  ----------------------
 #------------------------------------------------------------
 

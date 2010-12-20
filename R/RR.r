@@ -380,7 +380,7 @@ RR.effects <- function(RRMatrix, name=NA, na.rm=FALSE) {
 	# sort releffects according to dyad
 	digits <- floor(log10(n))+1
 	effRel$dyad <- factor(apply(effRel, 1, function(x) paste(sort(x[1:2], decreasing=FALSE), collapse="_")))
-	effRel$dyad <- factor(effRel$dyad, labels=f2(1:length(levels(effRel$dyad)), 0, paste("0",digits,sep="")))
+	effRel$dyad <- factor(effRel$dyad, labels=paste(attr(RRold, "group.id"), "_", f2(1:length(levels(effRel$dyad)), 0, paste("0",digits,sep="")), sep=""))
 	effRel <- effRel[,c(1,2,4,3)]
 	effRel <- effRel[order(effRel$dyad, effRel$actor.id),]
 	
