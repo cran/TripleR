@@ -426,12 +426,12 @@ RR.univariate <- function(RRMatrix, na.rm=FALSE, verbose=TRUE, corr.fac="1") {
 	## Warning if too many missings are present
 	if (n.NA > 0 & na.rm==TRUE) {
 		wa <- FALSE
-		if (n==4 & n.NA > 0 & verbose) {wa <- TRUE}
-		if (n==5 & n.NA > 1 & verbose) {wa <- TRUE}
-		if (n==6 & n.NA > 2 & verbose) {wa <- TRUE}
-		if (n %in% c(6,7) & n.NA > 2 & verbose) {wa <- TRUE}
-		if (n>7 & n < 20 & (n.NA/(n^2-n)) > .10 & verbose) {wa <- TRUE}
-		if (n>=20 & (n.NA/(n^2-n)) > .20 & verbose) {wa <- TRUE}
+		if (n==4 & n.NA > 1 & verbose) {wa <- TRUE}
+		if (n==5 & n.NA > 2 & verbose) {wa <- TRUE}
+		if (n==6 & n.NA > 4 & verbose) {wa <- TRUE}
+		if (n==7 & n.NA > 6 & verbose) {wa <- TRUE}
+		if (n==8 & n.NA > 8 & verbose) {wa <- TRUE}
+		if (n>=10 & (n.NA/(n^2-n)) > .20 & verbose) {wa <- TRUE}
 		
 		if (wa) {
 			warning(paste("Note: The number of missing values (n.NA=",n.NA,"; ",round((n.NA/(n^2-n))*100, 1),"%) in group ",attr(RRMatrix, "group.id")," exceeds the recommended maximum number of missings according to Schoenbrodt, Back, & Schmukle (in prep.). Estimates might be biased.", sep=""), call.=FALSE)
