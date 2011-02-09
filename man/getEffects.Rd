@@ -8,7 +8,7 @@ Calculates round robin effects for multiple variables
 This is a helper function which facilitates the calculation of round robin effects if many variables are assessed. Only univariate analyses are possible at the moment.
 }
 \usage{
-getEffects(formule, data, varlist, by = NA, na.rm = TRUE)
+getEffects(formule, data, varlist, by=NA, na.rm=TRUE, ...)
 }
 
 \arguments{
@@ -26,6 +26,10 @@ By which variables should the results be merged? If by is NA (the default), a in
   \item{na.rm}{
 This argument is passed to function \code{RR}.
 }
+  \item{...}{
+Additional parameters passed to RR (e.g., selfenhance)
+}
+
 }
 
 \value{

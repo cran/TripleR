@@ -18,11 +18,9 @@ flush(stderr()); flush(stdout())
 
 ### ** Examples
 
-#The example data are taken from the "Mainz Freshman Study" and consist 
+# The example data are taken from the "Mainz Freshman Study" and consist 
 # of ratings of liking as well as ratings of the metaperception of 
 # liking at zero-acquaintance using a Round-Robin group of 54 participants 
-# (Back, Schmukle, & Egloff, in press)
-
 
 #------------------------------------------------------------
 # ----  Single group   --------------------------------------
@@ -74,10 +72,10 @@ print(RR4, measure1="p", measure2="p")
 
 
 #------------------------------------------------------------
-# ----  Multi group --------------------------------------
+# ----  Multiple groups --------------------------------------
 #------------------------------------------------------------
 
-# Contains the liking data set (see above) for multiple groups
+# data("multiLikingLong") is a variant of the liking data set (see above) with multiple groups
 data("multiLikingLong")
 
 # set RR.style to "perception" (affects subsequent printing of objects)
@@ -105,7 +103,7 @@ print(RR1m, measure1="perception")
 
 
 #------------------------------------------------------------
-# ----  Multi group with missing values --------------------------------------
+# ----  Multiple groups with missing values --------------------------------------
 #------------------------------------------------------------
 
 # a multi group data set with two variables:
@@ -114,6 +112,10 @@ data("multiGroup")
 
 #manifest univariate SRM analysis, data set with missings
 RR1miss <- RR(ex~actor.id*partner.id|group.id, data=multiGroup, na.rm=TRUE)
+
+#manifest univariate SRM analysis, data set with missings, 
+# minimum 10 data points are requested for each participant
+RR1miss <- RR(ex~actor.id*partner.id|group.id, data=multiGroup, na.rm=TRUE, minData=10)
 
 
 
@@ -139,6 +141,24 @@ RR(liking_a ~ actor.id*partner.id, data=likingLong)
 RR.style("p")	# a "p" is enough for "perception"
 RR(liking_a ~ actor.id*partner.id, data=likingLong)
 
+
+
+
+cleanEx()
+nameEx("RR.summary")
+### * RR.summary
+
+flush(stderr()); flush(stdout())
+
+### Name: RR.summary
+### Title: Print group descriptives
+### Aliases: RR.summary
+
+### ** Examples
+
+
+data("multiGroup")
+RR.summary(ex~actor.id*partner.id|group.id, data=multiGroup) 
 
 
 

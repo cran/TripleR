@@ -15,7 +15,7 @@
 The function RR performs Social Relation Model (SRM) analyses for single or multiple round-robin groups. 
 }
 \usage{
-RR(formula, data, na.rm=FALSE, minData=1, verbose=TRUE, g.id=NULL)
+RR(formula, data, na.rm=FALSE, minData=1, verbose=TRUE, g.id=NULL, index="", exclude.ids="", ...)
 }
 
 
@@ -26,11 +26,14 @@ RR(formula, data, na.rm=FALSE, minData=1, verbose=TRUE, g.id=NULL)
 \item{minData}{Sets the minimum of data points which have to be present in each row and column}
 \item{verbose}{Defines if warnings and additional information should be printed on execution}
 \item{g.id}{For internal use only; do not set this parameter}
+\item{index}{set \code{index = 'enhance'} for additionally requesting an index for self enhancement (self rating - perceiver effect - target effect - group mean of self ratings; Kwan, John, Kenny, Bond, & Robins, 2004) along with the actor and partner effects.}
+\item{exclude.ids}{For internal use only; do not set this parameter}
+\item{...}{Further undocumented or internal arguments passed to the function}
 }
 \details{
 Please note: detailed instructions on how to use the TripleR package are provided in the built in pdf document `How to use TripleR'. You can open this document either by on this link: \url{../doc/TripleR.pdf}, or you can browse all included vignettes by opening the index of the package documentation (scroll down to the very end of this page and click on `Index'; than click on `Overview of user guides and package vignettes'). These help files are only for quick references.
 
-The estimation of the parameters of the Social Relation Model (SRM) is based on formulae provided by Kenny (1994; p. 236-244). For tests of significance of a single group, Triple R computes standard errors by using formulae published by Bond and Lashley (1996) for the case of a univariate SRM analysis. The formulae for the standard errors of the bivariate SRM parameters were kindly provided to us by C.F. Bond in personal communication. If multiple groups are provided, by default a between-group t-test is employed to calculate the significance. If you have very few groups with a considerable size (n>15), even in the multi group scenario it might be preferable to use the within-group test of significance. You can inspect the within-group test of significance for each of the multiple groups in the return value (see \code{groups.univariate}).
+The estimation of the parameters of the Social Relation Model (SRM) is based on formulae provided by Kenny (1994; p. 236-244). For tests of significance of a single group, Triple R computes standard errors by using formulae published by Bond and Lashley (1996) for the case of a univariate SRM analysis. The formulae for the standard errors of the bivariate SRM parameters were kindly provided to us by C.F. Bond in personal communication. If multiple groups are provided, by default a between-group t-test is employed to calculate the significance. If you have very few groups with a considerable size (n>15), even in the multiple group scenario it might be preferable to use the within-group test of significance. You can inspect the within-group test of significance for each of the multiple groups in the return value (see \code{groups.univariate}).
 
 The formula to specify the round robin design has following notation:
 \code{DV ~ actor.id * partner.id | group.id} (group.id is only provided if multiple groups are present). If two variables are used to describe one latent construct, both are connected with a slash on the left hand side: \code{DV1a/DV1b ~ actor.id * partner.id}. If two variables are used to describe two manifest constructs, both are connected with a \code{+} on the left hand side: \code{DV1+DV2 ~ actor.id * partner.id}. A latent analysis of two constructs would be notated as following: \code{DV1a/DV1b + DV2a/DV2b ~ actor.id * partner.id}.
@@ -38,10 +41,11 @@ The formula to specify the round robin design has following notation:
 
 Data sets from the Mainz Freshman Study (see Back, Schmukle, & Egloff, in press) are included (liking_a, liking_b, metaliking_a, metaliking_b, likingLong), as well as an additional data set containing missing values (multiGroup)
 
-The handling for missing data (\code{na.rm=TRUE}) is performed in two steps:
+The handling for missing data (\code{na.rm=TRUE}) is performed in three steps:
 \itemize{
 \item Rows and columns which have less then \code{minData} data points are removed from the matrix (i.e. both the `missing' row or column and the corresponding column or row, even if they have data in them)
 \item For the calculation of actor and partner variances, actor-partner-covariances and the respective effects, missing values are imputed as the average of the respective row and col means. The calculation of relationship variances and covariances as well as relationship effects is also based on the imputed data set; however, single relationship effects which were missing in the original data set are set to missing again.
+\item In the case of multiple variables (i.e., latent or bivariate analyses), participants are excluded listwise to ensure that all analyses are based on the same data set.
 }
 }
 
@@ -64,7 +68,7 @@ Bivariate, single group:
 \item{bivariate}{Results of bivariate SRM analyses}
 
 
-In the multi group case, following values are returned:
+In the multiple group case, following values are returned:
 
 \item{univariate}{The weighted average of univariate SRM results}
 \item{bivariate}{The weighted average of bivariate SRM results}
@@ -101,26 +105,26 @@ You can plot any RR object using \code{plot(RR)}. See \code{\link{plot.RRuni}} f
 }
 
 \references{ 
-Back, M. D., Schmukle, S. C., & Egloff, B. (in press). From first sight to friendship: A longitudinal social relations analysis of stability and change in interpersonal attraction. \emph{European Journal of Personality}.
+Back, M. D., Schmukle, S. C. & Egloff, B. (in press). A closer look at first sight: Social relations lens model analyses of personality and interpersonal attraction at zero acquaintance. \emph{European Journal of Personality}.
 
 Bonito, J. A., & Kenny, D. A. (2010). The measurement of reliability of social relations components from round-robin designs. \emph{Personal Relationships, 17}, 235 - 251.
 
 Kenny, D. A. (1994). \emph{Interpersonal perception: A social relations analysis}. New York: Guilford Press.
+
+Kwan, V. S. Y., John, O. P., Kenny, D. A., Bond, M. H., & Robins, R. W. (2004). Reconceptualizing individual differences in self-enhancement bias: An interpersonal approach. \emph{Psychological Review, 111}, 94–110.
 
 Lashley, B. R., & Bond, C. F., Jr. (1997). Significance testing for round robin data. \emph{Psychological Methods}, \emph{2}, 278-291.}
 
 \author{Stefan C. Schmukle, Felix D. Schönbrodt & Mitja D. Back}
 
 \seealso{
-\code{\link{RR.style}}, \code{\link{getEffects}}, \code{\link{plot_missings}}, \code{\link{long2matrix}}, \code{\link{matrix2long}}, \code{\link{plot.RRuni}}
+\code{\link{RR.style}}, \code{\link{getEffects}}, \code{\link{plot_missings}}, \code{\link{long2matrix}}, \code{\link{matrix2long}}, \code{\link{plot.RRuni}}, \code{\link{RR.summary}}
 }
 
 \examples{
-#The example data are taken from the "Mainz Freshman Study" and consist 
+# The example data are taken from the "Mainz Freshman Study" and consist 
 # of ratings of liking as well as ratings of the metaperception of 
 # liking at zero-acquaintance using a Round-Robin group of 54 participants 
-# (Back, Schmukle, & Egloff, in press)
-
 
 #------------------------------------------------------------
 # ----  Single group   --------------------------------------
@@ -172,10 +176,10 @@ print(RR4, measure1="p", measure2="p")
 
 
 #------------------------------------------------------------
-# ----  Multi group --------------------------------------
+# ----  Multiple groups --------------------------------------
 #------------------------------------------------------------
 
-# Contains the liking data set (see above) for multiple groups
+# data("multiLikingLong") is a variant of the liking data set (see above) with multiple groups
 data("multiLikingLong")
 
 # set RR.style to "perception" (affects subsequent printing of objects)
@@ -203,7 +207,7 @@ print(RR1m, measure1="perception")
 
 
 #------------------------------------------------------------
-# ----  Multi group with missing values --------------------------------------
+# ----  Multiple groups with missing values --------------------------------------
 #------------------------------------------------------------
 
 # a multi group data set with two variables:
@@ -212,6 +216,10 @@ data("multiGroup")
 
 #manifest univariate SRM analysis, data set with missings
 RR1miss <- RR(ex~actor.id*partner.id|group.id, data=multiGroup, na.rm=TRUE)
+
+#manifest univariate SRM analysis, data set with missings, 
+# minimum 10 data points are requested for each participant
+RR1miss <- RR(ex~actor.id*partner.id|group.id, data=multiGroup, na.rm=TRUE, minData=10)
 
 
 }

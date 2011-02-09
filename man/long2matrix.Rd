@@ -7,7 +7,7 @@ This function converts data from the long format to a quadratic round robin matr
 }
 
 \usage{
-long2matrix(formule, data, minData=1, verbose=TRUE, reduce=TRUE, skip3=FALSE, g.id=NULL)
+long2matrix(formule, data, minData=1, verbose=TRUE, reduce=TRUE, skip3=TRUE, g.id=NULL, exclude.ids=NULL, ...)
 }
 
 \arguments{
@@ -18,6 +18,8 @@ long2matrix(formule, data, minData=1, verbose=TRUE, reduce=TRUE, skip3=FALSE, g.
 	\item{reduce}{Should persons that only are actors or only partners be removed? Actor/partner effects and variance components can only be calculated, if every person is both an actor and a partner. For displaying reasons (e.g. for data inspection), however, it can be necessary to check, which persons are missing.}
 	\item{skip3}{Should groups with 3 or fewer participants be skipped? SRAs need groups with a minimum of 4 participants}
 	\item{g.id}{For internal use only}
+	\item{exclude.ids}{A list of participant ids, which should be excluded}
+	\item{...}{Further undocumented or internal arguments passed to the function}
 }
 
 \value{

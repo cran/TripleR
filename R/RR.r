@@ -40,6 +40,36 @@ bilabels_meta <- c("Perceiver assumed reciprocity","Generalized assumed reciproc
 "Perceiver meta-accuracy", "Generalized meta-accuracy", "Dyadic assumed reciprocity", "Dyadic meta-accuracy")
 
 
+
+RR.summary <- function(formule, data) {
+	# save warnings for later output
+	l <- long2matrix(formule, data)
+	cat(paste("Number of groups:",length(l))); cat("\n")
+	cat(paste("Number of valid groups (i.e., more than 3 group members):\n",sum(laply(l, function(x) ncol(x) > 3)))); cat("\n")
+	
+	# which groups are excluded?
+	excl.id <- c()
+	for (i in 1: length(l)) {if (nrow(l[[i]]) <=3) excl.id <- c(excl.id, attr(l[[i]], "group.id"))}
+	if (length(excl.id>0)) {
+		cat("Following groups are excluded because they have 3 or less members:")
+		cat(paste("\n\t",excl.id)) 
+		cat("\n\n")
+	}
+
+	cat("Group sizes:\n")
+	for (i in 1:length(l)) {cat(paste(attr(l[[i]], "group.id"),": n=",ncol(l[[i]]),"\n", sep=""))}
+
+	cat("\n\n")
+	cat("Group member statistics:"); cat("\n")
+	gs <- laply(l, function(x) ncol(x))	# group sizes
+	gm <- table(gs)
+	names(gm) <- paste("n=",names(gm), sep="")
+	print(gm); cat("\n")
+	cat(paste("Min:",min(gs))); cat("\n")
+	cat(paste("Max:",max(gs))); cat("\n")
+	cat(paste("Mean:",round(mean(gs), 2))); cat("\n\n")
+}
+
 # set options for printing reults etc.
 # style = c("behavior", "perception")
 RR.style <- function(style="behavior", suffixes=NA) {
@@ -69,12 +99,12 @@ clamp <- function(...) {
 
 # function takes data in the "long" format and returns a list with quadratic
 # round robin matrices for each group
-long2matrix <- function(formule, data, minData=1, verbose=TRUE, reduce=TRUE, skip3=FALSE, g.id=NULL) {
+long2matrix <- function(formule, data, minData=1, verbose=TRUE, reduce=TRUE, skip3=TRUE, g.id=NULL, exclude.ids=NULL, ...) {
 	
+	extra <- list(...)
+
 	# parse formula
 	#remove spaces from formula
-	
-	
 	lhs <- strsplit(gsub(" ","",as.character(formule)[2], fixed=TRUE), "+", fixed=TRUE)[[1]]
 	rhs <- strsplit(gsub(" ","",as.character(formule)[3], fixed=TRUE),"\\*|\\|", perl=TRUE)[[1]]
 	
@@ -105,11 +135,14 @@ long2matrix <- function(formule, data, minData=1, verbose=TRUE, reduce=TRUE, ski
 	data <- data[, colnames(data) %in% c(actor.id, partner.id, var.id, group.id)]
 	
 	res <- list()
+	del.IDs <- c()	# the complete list of deleted participants
+	del.groups <- c()	# the complete list of deleted groups
 	
 	for (g in group.ids) {
 		
 		#print(paste("Processing group",g))
 		block <- data[data[,group.id]==g,]
+		# block <- block[!is.na(block[,var.id]),]
 		
 		# reduce ids to factor levels which are actually present
 		block[,actor.id] <- factor(as.character(block[,actor.id]), ordered=TRUE)
@@ -121,21 +154,22 @@ long2matrix <- function(formule, data, minData=1, verbose=TRUE, reduce=TRUE, ski
 			
 			# Schnittmenge aus actors und partners herausfinden
 			p <- intersect(levels(as.factor(block[,actor.id])), levels(as.factor(block[,partner.id])))
-			block.clean <- block[block[,actor.id] %in% p & block[,partner.id] %in% p, which(colnames(block) != group.id)]
-			t1 <- table(block.clean$actor.id, block.clean$partner.id)
-			delrow <- rownames(t1)[apply(t1, 1, sum, na.rm=TRUE)==0]
-			delcol <- rownames(t1)[apply(t1, 2, sum, na.rm=TRUE)==0]
-			p2 <- setdiff(p, union(delrow, delcol))
+			block.clean <- block[(block[,actor.id] %in% p) & (block[,partner.id] %in% p), which(colnames(block) != group.id)]
 			
-			dels <- length(union(delrow, delcol))
-			if (dels > 0 & verbose) {warning(paste(dels,"participant(s) in group",g,"have been excluded due to exceedingly missing data."), call.=FALSE)}
+			# reduce levels again
+			block.clean[,actor.id] <- factor(as.character(block.clean[,actor.id]), ordered=TRUE)
+			block.clean[,partner.id] <- factor(as.character(block.clean[,partner.id]), ordered=TRUE)
+			
+			delComplete.IDs <- setdiff(union(levels(block[,actor.id]), levels(block[,partner.id])), p)
+			p2 <- p
 			
 		} else {
+			delComplete.IDs <- c()
 			p2 <- union(levels(as.factor(block[,actor.id])), levels(as.factor(block[,partner.id])))
 		}
 			
 			
-		if (length(p2) <= 1 & verbose) {
+		if (length(p2) <= 1 & verbose==TRUE) {
 			warning(paste("Warning: The provided data of group",g,"are not in round robin format!"), call.=FALSE);
 			next();
 		}
@@ -163,33 +197,75 @@ long2matrix <- function(formule, data, minData=1, verbose=TRUE, reduce=TRUE, ski
 		diag(box) <- NA
 		
 		# Voyeure entfernen (nur actors oder nur partners) - iterativ
+		delVoyeur.IDs <- c()
 		if (reduce) {
 			repeat {
-				del.row <- apply(box, 1, function(x) (length(x) - sum(is.na(x))) < minData)
+				del.row <- apply(box, 1, function(x) return((length(x) - sum(is.na(x))) < minData))
 				del.col <- apply(box, 2, function(x) (length(x) - sum(is.na(x))) < minData)
 				dels <- del.row | del.col
 				if (sum(dels==TRUE) == 0) {break();}
+				delVoyeur.IDs <- c(delVoyeur.IDs, colnames(box)[dels])
 				box <- box[!dels,!dels]
 				self <- self[!dels]
+				if (is.null(box) | length(box) <= 1) break();
 			}
 		}
 		
+		if (length(box) <= 1) box <- NULL
 		
-		if (!skip3 | nrow(box)>3) {
-			res[[g]] <- box
-			attr(res[[g]], "group.id") <- g
-			attr(res[[g]], "varname") <- var.id
-			if (any(!is.na(self))) {
-				attr(res[[g]], "self.ratings") <- self
+		# Exclude the exclude.ids
+		ex2 <- intersect(rownames(box), exclude.ids)
+		self <- self[!rownames(box) %in% ex2]
+		if (!is.null(box)) box <- box[!rownames(box) %in% ex2,!colnames(box) %in% ex2]
+		
+		## Warnung ausgeben
+		del.IDs <- c(del.IDs, union(delComplete.IDs, union(delVoyeur.IDs, ex2)))
+		del2 <- union(delComplete.IDs, union(delVoyeur.IDs, ex2))
+		if (verbose==TRUE & length(del2) > 0) {
+			
+			if (is.null(extra[["bistyle"]])) {
+				warning(paste(var.id,": ",length(del2)," participant(s) have been excluded from group",g,"due to exceedingly missing data; id(s) =",paste(del2, collapse=", "),"."), call.=FALSE)
+			} else {
+				warning(paste(length(del2)," participant(s) have been excluded from group",g,"due to exceedingly missing data in at least one variable; id(s) =",paste(del2, collapse=", "),"."), call.=FALSE)
 			}
+			
 		}
-		if (skip3 & nrow(box)<=3) {
-			if (verbose) {
-				warning(paste("WARNING: group",g,"has 3 or fewer subjects. For calculation of SRM variables minimum group size is 4 - the group is excluded from the analyses"), call.=FALSE);
+		
+		if (is.null(box)) {
+			del.groups <- c(del.groups, g)
+			if (verbose==TRUE) {
+				if (is.null(extra[["bistyle"]])) {
+					warning(paste(var.id,": group",g,"has 3 or fewer subjects - the group is excluded from the analyses."), call.=FALSE)
+				} else {
+					warning(paste("Group",g,"has 3 or fewer subjects - the group is excluded from the analyses."), call.=FALSE)
+				}
+			}
+		} else {
+			if (!skip3 | nrow(box)>3) {
+				res[[g]] <- box
+				attr(res[[g]], "group.id") <- g
+				attr(res[[g]], "varname") <- var.id
+				if (any(!is.na(self))) {
+					attr(res[[g]], "self.ratings") <- self
+				}
+			}
+			if (skip3 & nrow(box)<=3) {
+				del.groups <- c(del.groups, g)
+				if (verbose==TRUE) {
+					if (is.null(extra[["bistyle"]])) {
+						warning(paste(var.id,": group",g,"has 3 or fewer subjects - the group is excluded from the analyses."), call.=FALSE)
+					} else {
+						warning(paste("Group",g,"has 3 or fewer subjects - the group is excluded from the analyses."), call.=FALSE)
+					}
+				}
 			}
 		}
 	
 	}
+	
+	# After processing all groups: attach excluded participant IDs
+	if (length(del.IDs)>0) {attr(res, "excluded.participants") <- sort(del.IDs)} else {attr(res, "excluded.participants") <- NULL}
+	if (length(del.groups)>0) {attr(res, "excluded.groups") <- sort(del.groups)} else {attr(res, "excluded.groups") <- NULL}
 	
 	
 	if (length(res)==0) {return()} 
@@ -223,7 +299,6 @@ clearLongData <- function(formule, data, minData=1) {
 
 # function takes data in matrix format and turns them into long format
 matrix2long <- function(M, new.ids=TRUE, var.id="value") {
-	
 	M <- as.matrix(M)
 	if (new.ids) {
 		rownames(M) <- colnames(M) <- seq(1, nrow(M))
@@ -325,7 +400,7 @@ impute <- function(RRMatrix, na.rm="meansNA", stress.max = 0.01, maxIt=100) {
 
 
 # calculates Actor-, Partner- and Relationship-Effects from a single RR-Matrix
-RR.effects <- function(RRMatrix, name=NA, na.rm=FALSE) {
+RR.effects <- function(RRMatrix, name=NA, na.rm=FALSE, index="") {
 
 	if (!is.null(attr(RRMatrix, "varname"))) name <- attr(RRMatrix, "varname")
 	
@@ -358,14 +433,25 @@ RR.effects <- function(RRMatrix, name=NA, na.rm=FALSE) {
 		c[imp$NAs==TRUE] <- NA
 	}
 	
-	# return effects also in long format
+
+
+	# actor and partner effects
 	
 	if (!is.null(attr(RRMatrix, "self.ratings"))) {
-		
 		self.centered <- attr(RRMatrix, "self.ratings")-mean(attr(RRMatrix, "self.ratings"), na.rm=TRUE)
 		
 		eff <- data.frame(id = rownames(RRMatrix), actor=a, partner=b, self=self.centered)
 		if (!is.null(name)) {colnames(eff)[2:4] <- paste(name, localOptions$suffixes, sep="")}
+		
+		## Add selfenhancement index?
+		if (index != "") {
+			if (match.arg(index, c("enhance"))=="enhance") {
+				kwan <- self.centered - a - b
+				eff <- data.frame(eff, enhance=kwan)
+				if (!is.null(name)) {colnames(eff)[colnames(eff)=="enhance"] <- paste(name, ".enhance", sep="")}
+			}
+		}
+		
 	} else {
 		eff <- data.frame(id = rownames(RRMatrix), actor=a, partner=b)
 		if (!is.null(name)) {colnames(eff)[2:3] <- paste(name, localOptions$suffixes[1:2], sep="")}
@@ -373,17 +459,22 @@ RR.effects <- function(RRMatrix, name=NA, na.rm=FALSE) {
 	
 	
 	
+	## Relationship effects
+	
 	effRel <- melt(c)
 	effRel <- effRel[apply(effRel, 1, function(x) {x[1] != x[2]}),]
 	colnames(effRel) <- c("actor.id", "partner.id", "relationship")
 	
-	# sort releffects according to dyad
+	# sort relEffects according to dyad
 	digits <- floor(log10(n))+1
 	effRel$dyad <- factor(apply(effRel, 1, function(x) paste(sort(x[1:2], decreasing=FALSE), collapse="_")))
 	effRel$dyad <- factor(effRel$dyad, labels=paste(attr(RRold, "group.id"), "_", f2(1:length(levels(effRel$dyad)), 0, paste("0",digits,sep="")), sep=""))
 	effRel <- effRel[,c(1,2,4,3)]
 	effRel <- effRel[order(effRel$dyad, effRel$actor.id),]
 	
+	
+	
+	## group means added
 	
 	eff.gm <- eff
 	if (!is.null(attr(RRMatrix, "self.ratings"))) {
@@ -393,11 +484,17 @@ RR.effects <- function(RRMatrix, name=NA, na.rm=FALSE) {
 		eff.gm[,2:3] <- eff.gm[,2:3]+mpp
 	}
 	
+
+
+	## construct return object
 	if (!is.null(attr(RRMatrix, "self.ratings"))) {
-		return(list(actor = a, partner = b, relationship = c, eff=eff, effRel=effRel, eff.gm=eff.gm, self=self.centered))
+		res <- list(actor = a, partner = b, relationship = c, eff=eff, effRel=effRel, eff.gm=eff.gm, self=self.centered)
 	} else {
-		return(list(actor = a, partner = b, relationship = c, eff=eff, effRel=effRel, eff.gm=eff.gm))
-		}
+		res <- list(actor = a, partner = b, relationship = c, eff=eff, effRel=effRel, eff.gm=eff.gm)
+	}
+	
+	
+	return(res)
 }
 
 
@@ -405,7 +502,7 @@ RR.effects <- function(RRMatrix, name=NA, na.rm=FALSE) {
 
 # calculates variance components from a single RR-Matrix
 # na.rm = TRUE / FALSE / "impute" (<- not implemented yet)
-RR.univariate <- function(RRMatrix, na.rm=FALSE, verbose=TRUE, corr.fac="1") {
+RR.univariate <- function(RRMatrix, na.rm=FALSE, verbose=TRUE, corr.fac="1", index="") {
 	
 	if (is.null(RRMatrix)) return();
 	
@@ -424,21 +521,21 @@ RR.univariate <- function(RRMatrix, na.rm=FALSE, verbose=TRUE, corr.fac="1") {
 	
 	
 	## Warning if too many missings are present
-	if (n.NA > 0 & na.rm==TRUE) {
+	if (n.NA > 0 & na.rm==TRUE & verbose==TRUE) {
 		wa <- FALSE
-		if (n==4 & n.NA > 1 & verbose) {wa <- TRUE}
-		if (n==5 & n.NA > 2 & verbose) {wa <- TRUE}
-		if (n==6 & n.NA > 4 & verbose) {wa <- TRUE}
-		if (n==7 & n.NA > 6 & verbose) {wa <- TRUE}
-		if (n==8 & n.NA > 8 & verbose) {wa <- TRUE}
-		if (n>=10 & (n.NA/(n^2-n)) > .20 & verbose) {wa <- TRUE}
+		if (n==4 & n.NA > 1) {wa <- TRUE}
+		if (n==5 & n.NA > 2) {wa <- TRUE}
+		if (n==6 & n.NA > 4) {wa <- TRUE}
+		if (n==7 & n.NA > 6) {wa <- TRUE}
+		if (n==8 & n.NA > 8) {wa <- TRUE}
+		if (n>=10 & (n.NA/(n^2-n)) > .20) {wa <- TRUE}
 		
-		if (wa) {
-			warning(paste("Note: The number of missing values (n.NA=",n.NA,"; ",round((n.NA/(n^2-n))*100, 1),"%) in group ",attr(RRMatrix, "group.id")," exceeds the recommended maximum number of missings according to Schoenbrodt, Back, & Schmukle (in prep.). Estimates might be biased.", sep=""), call.=FALSE)
+		if (wa==TRUE) {
+			warning(paste(attr(RRMatrix, "varname"),": The number of missing values (n.NA=",n.NA,"; ",round((n.NA/(n^2-n))*100, 1),"%) in group ",attr(RRMatrix, "group.id")," exceeds the recommended maximum number of missings according to Schoenbrodt, Back, & Schmukle (in prep.). Estimates might be biased.", sep=""), call.=FALSE)
 		}
 	}
 	
-	eff <- RR.effects(RRMatrix, name=attr(RRMatrix, "varname"), na.rm=na.rm)
+	eff <- RR.effects(RRMatrix, name=attr(RRMatrix, "varname"), na.rm=na.rm, index=index)
 	
 	A <- sum(eff$actor^2)/(n-1)
 	B <- sum(eff$partner^2)/(n-1)
@@ -547,15 +644,16 @@ RR.univariate <- function(RRMatrix, na.rm=FALSE, verbose=TRUE, corr.fac="1") {
 # latent = FALSE: both matrices are treated as independent variables
 # noCorrection = TRUE: even if univariate estimates are negative, bivariate covariances are NOT set to NA (this is necessary, when the manifest bivariat results are transferred into the bivariate latent analysis, see TAG1)
 
-RR.bivariate <- function(RRMatrix1, RRMatrix2, analysis="manifest", na.rm=FALSE, verbose=TRUE, noCorrection=FALSE) {
+RR.bivariate <- function(RRMatrix1, RRMatrix2, analysis="manifest", na.rm=FALSE, verbose=TRUE, noCorrection=FALSE, index="") {
 	
 	if (!(analysis %in% c("latent", "manifest"))) stop("Parameter 'analysis' must either be 'latent' or 'manifest'. Calculations aborted.")
 	
 	
 	dif1 <- union(setdiff(rownames(RRMatrix1), rownames(RRMatrix2)), setdiff(rownames(RRMatrix2), rownames(RRMatrix1)))
-	if (length(dif1)>0) {
-		warning(paste("Following participant(s) have been excluded from the bivariate analysis because of missing data in one of the variables:",dif1), call.=FALSE)
+	if (length(dif1)>0 & verbose==TRUE) {
+		warning(paste(length(dif1),"participant(s) have been excluded from the bivariate/latent analysis due to missing data in one of both variables"), call.=FALSE)
 	}
+	
 	
 	# Clean up data: only participants are allowed that are in BOTH matrices
 	allparticipants <- intersect(rownames(RRMatrix1), rownames(RRMatrix2))
@@ -577,8 +675,8 @@ RR.bivariate <- function(RRMatrix1, RRMatrix2, analysis="manifest", na.rm=FALSE,
 	rownames(RRMatrix1) <- rownames(RRMatrix2) <- colnames(RRMatrix1) <- colnames(RRMatrix2) <- dimn
 	
 	
-	RR.1 <- RR.univariate(RRMatrix1, na.rm, verbose)
-	RR.2 <- RR.univariate(RRMatrix2, na.rm, verbose)	
+	RR.1 <- RR.univariate(RRMatrix1, na.rm, verbose, index=index)
+	RR.2 <- RR.univariate(RRMatrix2, na.rm, verbose, index=index)	
 	varComp.1 <- RR.1$varComp$estimate
 	varComp.2 <- RR.2$varComp$estimate
 	n <- nrow(RRMatrix1)
@@ -774,35 +872,29 @@ if (analysis=="manifest") {
 	if (stabrelvar1 < 0) rel.r <- NaN
 	
 	#-------------------------------
+
+	## average effects of both latent indicators
+	eff2 <- (as.matrix(RR.1$effects[,-1]) + as.matrix(RR.2$effects[,-1])) / 2
+	eff3 <- data.frame(RR.1$effects$id, eff2)
+	colnames(eff3) <- colnames(RR.1$effects)
+	eff <- eff3
 	
+	eff2 <- (as.matrix(RR.1$effects.gm[,-1]) + as.matrix(RR.2$effects.gm[,-1])) / 2
+	eff3 <- data.frame(RR.1$effects.gm$id, eff2)
+	colnames(eff3) <- colnames(RR.1$effects.gm)
+	eff.gm <- eff3
 	
-	eff2 <- merge(RR.1$effects, RR.2$effects, by=c("id"))
-	
-	eff2$actor <- apply(eff2[,grep(localOptions$suffixes[1], colnames(eff2))], 1, mean, na.rm=TRUE)
-	eff2$partner <- apply(eff2[,grep(localOptions$suffixes[2], colnames(eff2))], 1, mean, na.rm=TRUE)
-	
-	# self ratings vorhanden?
-	if (ncol(RR.1$effects)==4) {
-		eff2$self <- apply(eff2[,grep(localOptions$suffixes[3], colnames(eff2))], 1, mean, na.rm=TRUE)
-	}
-	
-	effRel2 <- merge(RR.1$effectsRel, RR.2$effectsRel, by=c("actor.id", "partner.id"))
+	effRel2 <- merge(RR.1$effectsRel, RR.2$effectsRel, by=c("actor.id", "partner.id", "dyad"))
 	effRel2$relationship <- apply(effRel2[,c("relationship.x", "relationship.y")], 1, mean, na.rm=TRUE)
+	effRel <- effRel2[,c("actor.id", "partner.id", "dyad", "relationship")]
+	effRel <- effRel[order(effRel$dyad),]
 	
-	if (ncol(RR.1$effects)==4) {
-		eff <- eff2[,c("id", "actor", "partner", "self")]
-	} else {
-		eff <- eff2[,c("id", "actor", "partner")]
-	}
-	colnames(eff) <- colnames(RR.1$effects)
-		
-	effRel <- effRel2[,c("actor.id", "partner.id", "relationship")]
 	
-	attr(eff[,2], "reliability") <- rel.a
-	attr(eff[,3], "reliability") <- rel.p
+	attr(eff[,grep(localOptions$suffixes[1], colnames(eff), fixed=TRUE)], "reliability") <- rel.a
+	attr(eff[,grep(localOptions$suffixes[2], colnames(eff), fixed=TRUE)], "reliability") <- rel.p
 	attr(effRel$relationship, "reliability") <- rel.r
 	
-	res <- list(effects = eff, effectsRel=effRel, varComp=results, unstabdycov1=unstabdycov1, unstabper1=unstabper1, unstabtar1=unstabtar1, unstabrel1=unstabrel1, unstable.raw=unstable.raw, latent=TRUE, anal.type="Latent construct analysis of one construct measured by two round robin variables")
+	res <- list(effects = eff, effects.gm=eff.gm, effectsRel=effRel, varComp=results, unstabdycov1=unstabdycov1, unstabper1=unstabper1, unstabtar1=unstabtar1, unstabrel1=unstabrel1, unstable.raw=unstable.raw, latent=TRUE, anal.type="Latent construct analysis of one construct measured by two round robin variables")
 	attr(res, "group.size") <- n
 	attr(res, "varname") <- paste(attr(RR.1, "varname"), attr(RR.2, "varname"), sep="/")
 	class(res) <- "RRuni"
@@ -826,7 +918,9 @@ ifg <- function(g) {
 
 
 # Wrapper function: depending on parameters, different results are calculated:
-RR <- function(formula, data, na.rm=FALSE, minData = 1, verbose=TRUE, g.id=NULL) {
+RR <- function(formula, data, na.rm=FALSE, minData = 1, verbose=TRUE, g.id=NULL, index="", exclude.ids="", ...) {
+
+	extra <- list(...)
 
 	# set default
 	analysis <- "manifest"
@@ -847,7 +941,7 @@ RR <- function(formula, data, na.rm=FALSE, minData = 1, verbose=TRUE, g.id=NULL)
 
 	# if a grouping factor is provided: forward to RR.multi
 	if (!is.null(group.id)) {
-		return(RR.multi(f1, data=data, na.rm=na.rm, verbose=verbose));
+		return(RR.multi(f1, data=data, na.rm=na.rm, verbose=verbose, index=index, minData=minData, exclude.ids=exclude.ids, ...));
 	}
 
 
@@ -858,11 +952,20 @@ RR <- function(formula, data, na.rm=FALSE, minData = 1, verbose=TRUE, g.id=NULL)
 	
 		# manifester vs. latenter Fall
 		if (length(lhs1)==1) {
-			RRMatrix1 <- long2matrix(formula(paste(lhs1,"~",actor.id,"*",partner.id,ifg(group.id))), data, verbose=verbose, minData=minData, skip3=TRUE, g.id=g.id)[[1]]
+			RRMatrix1 <- long2matrix(formula(paste(lhs1,"~",actor.id,"*",partner.id,ifg(group.id))), data, verbose=verbose, minData=minData, skip3=TRUE, g.id=g.id, exclude.ids=exclude.ids, ...)[[1]]
 			analysis <- "manifest"
+			
 		} else if (length(lhs1)==2) {
-			RRMatrix1 <- long2matrix(formula(paste(lhs1[1],"~",actor.id,"*",partner.id,ifg(group.id))), data, verbose=verbose, minData=minData, skip3=TRUE, g.id=g.id)[[1]]
-			RRMatrix2 <- long2matrix(formula(paste(lhs1[2],"~",actor.id,"*",partner.id,ifg(group.id))), data, verbose=verbose, minData=minData, skip3=TRUE, g.id=g.id)[[1]]
+			
+			# if (!is.null(extra[["bistyle"]])) {v2 <- FALSE} else {v2=verbose}
+			
+			ex1 <- attr(long2matrix(formula(paste(lhs1[1],"~",actor.id,"*",partner.id,ifg(group.id))), data, verbose=FALSE, minData=minData, skip3=TRUE, g.id=g.id, ...), "excluded.participants")
+			ex2 <- attr(long2matrix(formula(paste(lhs1[2],"~",actor.id,"*",partner.id,ifg(group.id))), data, verbose=FALSE, minData=minData, skip3=TRUE, g.id=g.id, ...), "excluded.participants")
+			ex3 <- Reduce(union, list(exclude.ids, ex1, ex2))
+			
+			
+			RRMatrix1 <- long2matrix(formula(paste(lhs1[1],"~",actor.id,"*",partner.id,ifg(group.id))), data, verbose=verbose, minData=minData, skip3=TRUE, g.id=g.id, exclude.ids=ex3, bistyle=TRUE)[[1]]
+			RRMatrix2 <- long2matrix(formula(paste(lhs1[2],"~",actor.id,"*",partner.id,ifg(group.id))), data, verbose=FALSE, minData=minData, skip3=TRUE, g.id=g.id, exclude.ids=ex3, ...)[[1]]
 			analysis <- "latent"
 		}
 	
@@ -875,22 +978,37 @@ RR <- function(formula, data, na.rm=FALSE, minData = 1, verbose=TRUE, g.id=NULL)
 		# manifester vs. latenter Fall
 		if (length(lhs1)==1) {
 			
-			RRMatrix1 <- long2matrix(formula(paste(lhs[1],"~",actor.id,"*",partner.id,ifg(group.id))), data, verbose=verbose, minData=minData, skip3=TRUE, g.id=g.id)[[1]]
+			RRMatrix1 <- long2matrix(formula(paste(lhs[1],"~",actor.id,"*",partner.id,ifg(group.id))), data, verbose=verbose, minData=minData, skip3=TRUE, g.id=g.id, exclude.ids=exclude.ids, ...)[[1]]
 			
-			RRMatrix2 <- long2matrix(formula(paste(lhs[2],"~",actor.id,"*",partner.id,ifg(group.id))), data, verbose=verbose, minData=minData, skip3=TRUE, g.id=g.id)[[1]]
+			RRMatrix2 <- long2matrix(formula(paste(lhs[2],"~",actor.id,"*",partner.id,ifg(group.id))), data, verbose=verbose, minData=minData, skip3=TRUE, g.id=g.id, exclude.ids=exclude.ids, ...)[[1]]
 			analysis <- "manifest"
 		} else if (length(lhs1)==2) {
 			lhs2 <- strsplit(lhs[2], "/")[[1]]
-			RRMatrix1 <- long2matrix(formula(paste(lhs1[1],"~",actor.id,"*",partner.id,ifg(group.id))), data, verbose=verbose, minData=minData, skip3=TRUE, g.id=g.id)[[1]]
-			RRMatrix2 <- long2matrix(formula(paste(lhs1[2],"~",actor.id,"*",partner.id,ifg(group.id))), data, verbose=verbose, minData=minData, skip3=TRUE, g.id=g.id)[[1]]
-			RRMatrix3 <- long2matrix(formula(paste(lhs2[1],"~",actor.id,"*",partner.id,ifg(group.id))), data, verbose=verbose, minData=minData, skip3=TRUE, g.id=g.id)[[1]]
-			RRMatrix4 <- long2matrix(formula(paste(lhs2[2],"~",actor.id,"*",partner.id,ifg(group.id))), data, verbose=verbose, minData=minData, skip3=TRUE, g.id=g.id)[[1]]
+			
+			
+			# exclude participants
+			
+			ex1a <- attr(long2matrix(formula(paste(lhs1[1],"~",actor.id,"*",partner.id,ifg(group.id))), data, verbose=FALSE, minData=minData, skip3=TRUE, g.id=g.id, ...), "excluded.participants")
+			ex1b <- attr(long2matrix(formula(paste(lhs1[2],"~",actor.id,"*",partner.id,ifg(group.id))), data, verbose=FALSE, minData=minData, skip3=TRUE, g.id=g.id, ...), "excluded.participants")
+			ex2a <- attr(long2matrix(formula(paste(lhs2[1],"~",actor.id,"*",partner.id,ifg(group.id))), data, verbose=FALSE, minData=minData, skip3=TRUE, g.id=g.id, ...), "excluded.participants")
+			ex2b <- attr(long2matrix(formula(paste(lhs2[2],"~",actor.id,"*",partner.id,ifg(group.id))), data, verbose=FALSE, minData=minData, skip3=TRUE, g.id=g.id, ...), "excluded.participants")
+			ex3 <- Reduce(union, list(exclude.ids, ex1a, ex1b, ex2a, ex2b))
+			
+			RRMatrix1 <- long2matrix(formula(paste(lhs1[1],"~",actor.id,"*",partner.id,ifg(group.id))), data, verbose=verbose, minData=minData, skip3=TRUE, g.id=g.id, exclude.ids=ex3, bistyle=TRUE)[[1]]
+			RRMatrix2 <- long2matrix(formula(paste(lhs1[2],"~",actor.id,"*",partner.id,ifg(group.id))), data, verbose=FALSE, minData=minData, skip3=TRUE, g.id=g.id, exclude.ids=ex3)[[1]]
+			RRMatrix3 <- long2matrix(formula(paste(lhs2[1],"~",actor.id,"*",partner.id,ifg(group.id))), data, verbose=FALSE, minData=minData, skip3=TRUE, g.id=g.id, exclude.ids=ex3)[[1]]
+			RRMatrix4 <- long2matrix(formula(paste(lhs2[2],"~",actor.id,"*",partner.id,ifg(group.id))), data, verbose=FALSE, minData=minData, skip3=TRUE, g.id=g.id, exclude.ids=ex3)[[1]]
 			analysis <- "latent"
 		}
 	} else {stop("Error: Unknown term in formula.")}
 	
 
 
+
+## if all RRMatrices are NULL: stop
+if (is.null(RRMatrix1) & is.null(RRMatrix2) & is.null(RRMatrix3) & is.null(RRMatrix4)) {
+	return(NULL);
+}
 	
 # depending on given parameters different results are calculated
 
@@ -898,9 +1016,9 @@ RR <- function(formula, data, na.rm=FALSE, minData = 1, verbose=TRUE, g.id=NULL)
 #- One group
 
 	if (is.null(RRMatrix2) & is.null(RRMatrix3) & is.null(RRMatrix4)) {
-		if (analysis=="latent") warning("Warning: analysis='latent' only is valid, when two different RRMatrices for one latent construct are given")
+		if (analysis=="latent") stop("Warning: analysis='latent' only is valid, when two different RRMatrices for one latent construct are given")
 		
-		res <- RR.univariate(RRMatrix1, na.rm, verbose)
+		res <- RR.univariate(RRMatrix1, na.rm, verbose, index=index)
 		return(res)
 	}
 	
@@ -910,10 +1028,10 @@ RR <- function(formula, data, na.rm=FALSE, minData = 1, verbose=TRUE, g.id=NULL)
 	if (is.null(RRMatrix3) & is.null(RRMatrix4)) {
 		
 		if (is.null(RRMatrix1) | is.null(RRMatrix2)) {
-			if (verbose) {warning("Error: One of both round robin matrices has to few participants!", call.=FALSE)}
+			# if (verbose) {warning("Error: One of both round robin matrices has to few participants!", call.=FALSE)}
 			return();
 		}
-		res <- RR.bivariate(RRMatrix1, RRMatrix2, analysis=analysis, na.rm=na.rm, verbose=verbose)
+		res <- RR.bivariate(RRMatrix1, RRMatrix2, analysis=analysis, na.rm=na.rm, verbose=verbose, index=index)
 		return(res);
 	}
 	
@@ -921,13 +1039,12 @@ RR <- function(formula, data, na.rm=FALSE, minData = 1, verbose=TRUE, g.id=NULL)
 #-----------------------------
 #- four groups: two constructs measured with each two variables
 
-	if (!is.null(RRMatrix2) & !is.null(RRMatrix3) & !is.null(RRMatrix4)) {
+	if (!is.null(RRMatrix1) & !is.null(RRMatrix2) & !is.null(RRMatrix3) & !is.null(RRMatrix4)) {
 		
-		if (analysis=="manifest") warning("Warning: if four groups are provided, the function RR assumes two constructs measured with each two variables. Therefore parameter analysis automatically is set to 'latent'");
 		
 		# calculate latent effects for both constructs
-		lat1.full <- RR.bivariate(RRMatrix1, RRMatrix2, analysis="latent", na.rm=na.rm, verbose=verbose)
-		lat2.full <- RR.bivariate(RRMatrix3, RRMatrix4, analysis="latent", na.rm=na.rm, verbose=verbose)
+		lat1.full <- RR.bivariate(RRMatrix1, RRMatrix2, analysis="latent", na.rm=na.rm, verbose=FALSE, index=index)
+		lat2.full <- RR.bivariate(RRMatrix3, RRMatrix4, analysis="latent", na.rm=na.rm, verbose=FALSE, index=index)
 		lat1 <- lat1.full$varComp$estimate
 		lat2 <- lat2.full$varComp$estimate
 				
@@ -938,7 +1055,7 @@ RR <- function(formula, data, na.rm=FALSE, minData = 1, verbose=TRUE, g.id=NULL)
 		RR34 <- (RRMatrix3+RRMatrix4)/2
 		
 		#TAG1 <-- this is a bookmark, do not remove
-		bivariate <- RR.bivariate(RR12, RR34, na.rm=na.rm, noCorrection=TRUE)$bivariate
+		bivariate <- RR.bivariate(RR12, RR34, na.rm=na.rm, verbose=FALSE, noCorrection=TRUE)$bivariate
 		
 		#Estimation of bivariate relations on construct level
 		
@@ -975,12 +1092,10 @@ RR <- function(formula, data, na.rm=FALSE, minData = 1, verbose=TRUE, g.id=NULL)
 		attr(grandres, "group.size") <- nrow(RRMatrix2)
 		return(grandres)		
 	} else {
-		stop("Error: One of the round robin matrices has to few participants!", call.=FALSE)
+		# warning("Error: One of the round robin matrices has to few participants!", call.=FALSE)
 	}
 	
-	# if no condition above had a hit: error
-	stop("Error: parameters are wrongly specified!")
-	
+	return(NULL);
 }
 
 
@@ -1153,10 +1268,11 @@ getWTest <- function(RR0, res1, typ="univariate", uni1=NA, uni2=NA, unstable=NA)
 
 
 
-RR.multi.uni <- function(formule, data, na.rm=FALSE, verbose=TRUE) {
+RR.multi.uni <- function(formule, data, na.rm=FALSE, verbose=TRUE, index="", minData=1, exclude.ids="", ...) {
 
 	# this function needs data in long format ...
-	
+	extra <- list(...)
+		
 	# parse formula
 	if (is.null(data)) stop("If a formula is specified, an explicit data object has to be provided!");
 	
@@ -1171,20 +1287,15 @@ RR.multi.uni <- function(formule, data, na.rm=FALSE, verbose=TRUE) {
 		
 	res <- data.frame()
 	res.bi <- data.frame()
-	effect <- data.frame()
-	effectRel <- data.frame()
-	eff.gm <- data.frame();
 	g.uni <- list()
 	saa <- sbb <- scc <- sccs <- n.m <- c()
 	undc1 <- unp1 <- unt1 <- unr1 <- un.raw  <- c()
-	
-	#data.groups <- long2matrix(formule, data, skip3=TRUE)
 	
 	for (g in names(table(data[,group.id]))) {
 		
 		#print(g)
 		
-		RR0 <- RR(f1, data=data[data[,group.id] == g,], verbose=verbose, na.rm=na.rm, g.id=group.id)
+		RR0 <- RR(f1, data=data[data[,group.id] == g,], verbose=verbose, na.rm=na.rm, g.id=group.id, index=index, minData=minData, exclude.ids=exclude.ids, ...)
 		g.id <- g
 
 		if (is.null(RR0)) {next;} else
@@ -1192,20 +1303,14 @@ RR.multi.uni <- function(formule, data, na.rm=FALSE, verbose=TRUE) {
 		
 		g.uni[[g]]$group.id <- g.id
 		RR0$effects$group.id <- g.id
+		RR0$effects <- RR0$effects[,c(1,ncol(RR0$effects),2:(ncol(RR0$effects)-1))] # reorder so that group.id is after id and not at the end
 		
-		if (nrow(effect) == 0) {
-			cs <- colnames(RR0$effects)
-		} else {
-			cs <- intersect(colnames(effect), colnames(RR0$effects))
-		}
-		effect <- rbind(effect, RR0$effects[,cs])
 
 		RR0$effectsRel$group.id <- g.id
-		effectRel <- rbind(effectRel, RR0$effectsRel)
 
 		if (RR0$latent==FALSE) {
 			RR0$effects.gm$group.id <- g.id
-			eff.gm <- rbind(eff.gm, RR0$effects.gm[,cs])
+			RR0$effects.gm <- RR0$effects.gm[,c(1,ncol(RR0$effects.gm),2:(ncol(RR0$effects.gm)-1))]
 		} else {
 			eff.gm <- list(relationship=NA)
 		}
@@ -1235,6 +1340,20 @@ RR.multi.uni <- function(formule, data, na.rm=FALSE, verbose=TRUE) {
 		
 	}
 
+
+
+	# aus der liste die Effekte extrahieren und zusammenfügen
+	effect <- ldply(g.uni, function(x) {return(x$effects)})
+	effect[,1:2] <- effect[,2:1]
+	colnames(effect)[1:2] <- c("id", "group.id")
+	
+	eff.gm <- ldply(g.uni, function(x) {return(x$effects.gm)})
+	eff.gm[,1:2] <- eff.gm[,2:1]
+	colnames(eff.gm)[1:2] <- c("id", "group.id")
+	
+	effectRel <- ldply(g.uni, function(x) {return(x$effectsRel)})
+	effectRel[,1:3] <- effectRel[,c(2,3,1)]
+	colnames(effectRel)[1:3] <- c("id", all.vars(f1)[2:3])
 
 
 	# im latenten Fall: die Error variance erst am Ende berechnen (d.h., alle error componenten ueber alle Gruppen mitteln, die unter NUll auf Null setzen, dann addieren)
@@ -1291,8 +1410,8 @@ RR.multi.uni <- function(formule, data, na.rm=FALSE, verbose=TRUE) {
 			attr(effectRel$relationship, "reliability") <- clamp(rel.r)
 		}
 
-		attr(effect[,2], "reliability") <- clamp(rel.a)
-		attr(effect[,3], "reliability") <- clamp(rel.p)
+		attr(effect[,grep(localOptions$suffixes[1], colnames(effect), fixed=TRUE)], "reliability") <- clamp(rel.a)
+		attr(effect[,grep(localOptions$suffixes[2], colnames(effect), fixed=TRUE)], "reliability") <- clamp(rel.p)
 		
 		# group mean & group variance		
 		group.means <- tapply(data[,all.vars(f1)[1]], data[,group.id], mean, na.rm=TRUE)
@@ -1312,6 +1431,11 @@ RR.multi.uni <- function(formule, data, na.rm=FALSE, verbose=TRUE) {
 		res2 <- list(effects = effect, effectsRel = effectRel, effects.gm = eff.gm, varComp = varComp, groups = g.uni, varComp.groups=res, group.var=group.var, anal.type=anal.type)
 		class(res2) <- "RRmulti"
 		attr(res2, "varname") <- attr(g.uni[[1]], "varname")
+		
+		# # noch rausfinden, welche Teilnehmer ausgeschlossen wurden
+		# l1 <- long2matrix(formule, data, verbose=FALSE)
+		# attr(res2, "excluded.participants") <- attr(l1, "excluded.participants")
+		# attr(res2, "excluded.groups") <- attr(l1, "excluded.groups")
 		
 		return(res2)
 	} else {return();}
@@ -1463,7 +1587,7 @@ plot_missings <- function(formule, data, show.ids=TRUE) {
 	if (is.null(data)) stop("If a formula is specified, an explicit data object has to be provided!");
 	
 	f0 <- all.vars(formule)
-	grs <- long2matrix(formule, data, reduce=FALSE)
+	grs <- long2matrix(formule, data, reduce=FALSE, skip3=FALSE)
 	
 	m1 <- melt(grs)
 	m1$value2 <- factor(ifelse(is.na(m1$value), 1, 0))
@@ -1472,7 +1596,7 @@ plot_missings <- function(formule, data, show.ids=TRUE) {
 	m1[,f0[3]] <- factor(m1[,f0[3]])
 	
 	p2 <- ggplot(m1, aes_string(x=f0[3], y=f0[2])) + geom_point(aes(color=value2), na.rm=TRUE) + facet_wrap(~L1, scales="free")
-	p2 <- p2 + scale_colour_identity("Missing?", breaks=c(0,1), labels=c("yes", "no"), legend=TRUE) 
+	p2 <- p2 + scale_colour_identity("Missing?", breaks=c(0,1), labels=c("no", "yes"), legend=TRUE) 
 	
 	p2 <- p2 + opts(axis.text.x = theme_text(angle = 90, hjust=1, size=7), axis.text.y = theme_text(hjust=1, size=7), title="Missing values", aspect.ratio=1)
 	
@@ -1483,9 +1607,10 @@ plot_missings <- function(formule, data, show.ids=TRUE) {
 }
 
 
-RR.multi <- function(formule, data, na.rm=FALSE, verbose=TRUE) {
+RR.multi <- function(formule, data, na.rm=FALSE, verbose=TRUE, index="", minData=1, exclude.ids="", ...) {
 
 	# this function needs data in long format ...
+	extra <- list(...)
 	
 	# parse formula
 	if (is.null(data)) stop("If a formula is specified, an explicit data object has to be provided!");
@@ -1498,21 +1623,34 @@ RR.multi <- function(formule, data, na.rm=FALSE, verbose=TRUE) {
 	
 	f3 <- strsplit(strsplit(gsub(" ","",fstring, fixed=TRUE),"~", perl=TRUE)[[1]][1], "+", fixed=TRUE)[[1]]
 	f4 <- strsplit(gsub(" ","",fstring, fixed=TRUE),"~", perl=TRUE)[[1]][2]
+	
+	if (sum(grepl("/", f3, fixed=TRUE))>1) {analysis <- "latent"} else {analysis <- "manifest"}
 
 	# Vorlage für die Varianzkomponente erstellen
 	df <- data[data[,group.id]==data[1,group.id],]
-	#RR0 <- RR(f1, data=df, verbose=FALSE, na.rm=na.rm)
-
 	mode <- ifelse(length(f3)==2,"bi","uni")
 
 
 
-	if (mode=="uni") return(RR.multi.uni(formule, data, na.rm, verbose))
+	if (mode=="uni") return(RR.multi.uni(formule, data, na.rm, verbose, index=index, minData=minData, exclude.ids=exclude.ids, ...))
 
 	# ... ansonsten bi-mode durchführen
 	
-	V1 <- RR.multi.uni(formula(paste(f3[1], "~", f4)), data, na.rm, verbose)
-	V2 <- RR.multi.uni(formula(paste(f3[2], "~", f4)), data, na.rm, verbose)
+	# find out, which participants are excluded and exclude them from all variables
+	if (analysis=="manifest") {
+		ex1 <- attr(long2matrix(formula(paste(f3[1], "~", f4)), data, verbose=FALSE, minData=minData), "excluded.participants")
+		ex2 <- attr(long2matrix(formula(paste(f3[2], "~", f4)), data, verbose=FALSE, minData=minData), "excluded.participants")
+		ex3 <- Reduce(union, list(ex1, ex2, exclude.ids))
+	} else {
+		ex1a <- attr(long2matrix(formula(paste(strsplit(f3[1], "/", fixed=TRUE)[[1]][1], "~", f4)), data, verbose=FALSE, minData=minData), "excluded.participants")
+		ex1b <- attr(long2matrix(formula(paste(strsplit(f3[1], "/", fixed=TRUE)[[1]][2], "~", f4)), data, verbose=FALSE, minData=minData), "excluded.participants")
+		ex2a <- attr(long2matrix(formula(paste(strsplit(f3[2], "/", fixed=TRUE)[[1]][1], "~", f4)), data, verbose=FALSE, minData=minData), "excluded.participants")
+		ex2b <- attr(long2matrix(formula(paste(strsplit(f3[2], "/", fixed=TRUE)[[1]][2], "~", f4)), data, verbose=FALSE, minData=minData), "excluded.participants")
+		ex3 <- Reduce(union, list(ex1a, ex1b, ex2a, ex2b, exclude.ids))
+	}
+	
+	V1 <- RR.multi.uni(formula(paste(f3[1], "~", f4)), data, na.rm, verbose=verbose, index=index, minData=minData, exclude.ids=ex3, bistyle=TRUE)
+	V2 <- RR.multi.uni(formula(paste(f3[2], "~", f4)), data, na.rm, verbose=FALSE, index=index, minData=minData, exclude.ids=ex3)
 	V2$varComp.groups$variable <- 2
 		
 	res <- data.frame()
@@ -1521,9 +1659,7 @@ RR.multi <- function(formule, data, na.rm=FALSE, verbose=TRUE) {
 	
 	for (g in names(table(data[,group.id]))) {
 		
-			#print(g)
-		
-			RR0 <- RR(f1, data=data[data[,group.id] == g,], verbose=FALSE, na.rm=na.rm)
+			RR0 <- RR(f1, data=data[data[,group.id] == g,], verbose=FALSE, na.rm=na.rm, minData=minData, exclude.ids=ex3)
 			
 			if (is.null(RR0)) {next;} else
 			{RR1 <- bi.groups[[g]]  <- RR0}
@@ -1543,23 +1679,23 @@ RR.multi <- function(formule, data, na.rm=FALSE, verbose=TRUE) {
 	class(res) <- "RRmulti"
 
 	return(res)
-
-
 }
 
 
 
 
 
-getEffects <- function(formule, data, varlist, by=NA, na.rm=TRUE) {
+getEffects <- function(formule, data, varlist, by=NA, na.rm=TRUE, ...) {
 
 	# run a RR analysis for each variable and store results in a list
 	res_list <- list()
 	for (v in 1:length(varlist)) {
 		print(paste("Calculate:",varlist[v]))
 		f1 <- formula(paste(varlist[v], paste(as.character(formule), collapse="")))
-		RR1 <- RR(f1, data=data, na.rm=na.rm, verbose=FALSE)
-		res_list <- c(res_list, list(RR1$effects))
+		RR1 <- RR(f1, data=data, na.rm=na.rm, verbose=FALSE, ...)
+		
+		eff <- RR1$effects
+		res_list <- c(res_list, list(eff))
 	}
 
 
@@ -1597,6 +1733,15 @@ f2 <- function(x, digits=3, prepoint=0) {
 
 # x muss hier direkt auf das univariate-Objekt verweisen
 print.uni <- function(x, ..., measure=NA, digits=3, r.names=NULL) {
+	
+	# print descriptivers for multi group
+	if (length(x$groups) > 1) {
+		groupsizes <- laply(x$groups, function(y) return(attr(y, "group.size")))
+		av.groupsize <- round(mean(groupsizes), 2)
+		
+		 print(paste("Group descriptives: n = ",length(x$groups),"; average group size = ",av.groupsize, "; range: ", min(groupsizes), "-", max(groupsizes)))
+	}
+	
 	uni <- round(x$varComp[,2:ncol(x$varComp)], digits)
 	
 	if (is.na(measure)) {
@@ -1618,10 +1763,10 @@ print.uni <- function(x, ..., measure=NA, digits=3, r.names=NULL) {
 	
 	
 	# Actor effect reliability
-	if (!is.null(x$effects[,2])) print(paste(role[[measure]][1], "effect reliability:",f2(attr(x$effects[,2], "reliability"), 3)))
+	if (!is.null(x$effects[,grep(localOptions$suffixes[1], colnames(x$effects), fixed=TRUE)])) print(paste(role[[measure]][1], "effect reliability:",f2(attr(x$effects[,grep(localOptions$suffixes[1], colnames(x$effects), fixed=TRUE)], "reliability"), 3)))
 	
 	# Partner effect reliability
-	if (!is.null(x$effects[,3])) print(paste(role[[measure]][2], "effect reliability:",f2(attr(x$effects[,3], "reliability"), 3)))
+	if (!is.null(x$effects[,grep(localOptions$suffixes[2], colnames(x$effects), fixed=TRUE)])) print(paste(role[[measure]][2], "effect reliability:",f2(attr(x$effects[,grep(localOptions$suffixes[2], colnames(x$effects), fixed=TRUE)], "reliability"), 3)))
 	
 	# Relationship effect reliability
 	if (!is.null(attr(x$effectsRel$relationship, "reliability"))) print(paste(role[[measure]][3], "effect reliability:",f2(attr(x$effectsRel$relationship, "reliability"), 3)))
@@ -1650,14 +1795,6 @@ print.RR <- function(x, ..., measure1=NA, measure2=NA, digits=3, measure=NULL) {
 	print("Round-Robin object ('RR'), calculated by TripleR")
 	print(x$anal.type)
 	
-	
-	# print descriptivers for multi group
-	if (length(x$groups) > 1) {
-		groupsizes <- laply(x$groups, function(y) return(attr(y, "group.size")))
-		av.groupsize <- round(mean(groupsizes), 2)
-		
-		 print(paste("Group descriptives: n = ",length(x$groups),"; average group size = ",av.groupsize, "; range: ", min(groupsizes), "-", max(groupsizes)))
-	}
 	
 	if (!is.null(measure)) {measure1 <- measure}
 	
@@ -1689,10 +1826,17 @@ print.RR <- function(x, ..., measure1=NA, measure2=NA, digits=3, measure=NULL) {
 		}
 		print(paste("Univariate analyses for:", attr(uni[[1]], "varname")))
 		print.uni(uni[[1]], measure=measure1, r.names=r.names1)
+		cat("\n")
 		print(paste("Univariate analyses for:", attr(uni[[2]], "varname")))
 		print.uni(uni[[2]], measure=measure2, r.names=r.names2)
+		cat("\n")
 		print("Bivariate analyses:")
+		
 		print(bi)
+		
+		if (length(uni[[1]]$groups) != length(uni[[2]]$groups)) {
+			warning(paste("Note: Univariate analyses of both variables are based on different numbers of groups. Bivariate analyses therefore are based on the common groups of both variables (n=",min(length(uni[[1]]$groups), length(uni[[2]]$groups)),")", sep=""), call.=FALSE)
+		}
 		
 	} else
 	

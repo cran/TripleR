@@ -17,15 +17,16 @@ Schmukle, S. C., Schönbrodt, F.D., & Back, M. D. (2010). TripleR: A package for
 \author{Stefan C. Schmukle, Felix D. Schönbrodt & Mitja D. Back
 }
 \references{
-Back, M. D., Schmukle, S. C., & Egloff, B. (in press). From first sight to friendship: A longitudinal social relations analysis of stability and change in interpersonal attraction. \emph{European Journal of Personality}. 
+Back, M. D., Schmukle, S. C., & Egloff, B. (in press). From first sight to friendship: A longitudinal social relations analysis of stability and change in interpersonal attraction. \emph{European Journal of Personality}.
 
-Bonito, J. A., & Kenny, D. A. (2010). The measurement of reliability of social relations components from round-robin designs. Personal Relationships, 17, 235 - 251.
 
-Kenny, D. A. (1994). Interpersonal perception: A social relations analysis. New York: Guilford Press.
+Bonito, J. A., & Kenny, D. A. (2010). The measurement of reliability of social relations components from round-robin designs. \emph{Personal Relationships, 17,} 235 - 251.
 
-Lashley, B. R., & Bond, C. F., Jr. (1997). Significance testing for round robin data. Psychological Methods, 2, 278-291.
+Kenny, D. A. (1994). \emph{Interpersonal perception: A social relations analysis}. New York: Guilford Press.
 
-Schönbrodt, F. D., Back, M. D., & Schmukle, S. C. (in prep). \emph{TripleR: An R Package for Advanced Social Relations Analyses.} Manuscript in preparation.
+Lashley, B. R., & Bond, C. F., Jr. (1997). Significance testing for round robin data. \emph{Psychological Methods, 2,} 278-291.
+
+Schönbrodt, F. D., Back, M. D., & Schmukle, S. C. (in prep). \emph{TripleR: An R package for advanced social relations analyses.} Manuscript in preparation.
 }
 
 \keyword{package}

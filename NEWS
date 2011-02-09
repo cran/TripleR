@@ -1,4 +1,42 @@
 #------------------------------------------------------------
+# ---- Changes in TripleR version 1.0.5  ----------------------
+#------------------------------------------------------------
+
+BUG FIXES
+
+- the labeling of missing values in plot_missings now is correct (swapped 'yes' and 'no')
+- minData now works correctly in the bivariate latent case
+
+
+#------------------------------------------------------------
+# ---- Changes in TripleR version 1.0.3  ----------------------
+#------------------------------------------------------------
+
+IMPROVEMENTS
+
+- in bivariate analyses now both univariate and the bivariate results are based on the same set of participants (in previous versions, data sets with many NAs could cause the exclusion of participants in one of both variables).
+
+
+#------------------------------------------------------------
+# ---- Changes in TripleR version 1.0.2  ----------------------
+#------------------------------------------------------------
+
+NEW FEATURES
+
+- added a function to display group statistics (group sizes, excluded groups, etc.): ?RR.summary
+- added the possibility to calculate self enhancement index (Kwan-Index) in the RR and getEffects function (set index="enhance"). These indices are reported along with the actor and partner effects, see RR_object$effects
+- effects-with-group-mean-added are now also provided in latent analyses
+
+BUG FIXES
+
+- the warning message about excluded participants now is correct
+
+IMPROVEMENTS
+
+- warning messages are more concise
+- many under-the-hood improvements
+
+#------------------------------------------------------------
 # ---- Changes in TripleR version 1.0.1  ----------------------
 #------------------------------------------------------------
 
