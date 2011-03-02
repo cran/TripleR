@@ -3,12 +3,12 @@ Package: TripleR
 Type: Package
 Title: Social Relation Model (SRM) analyses for single or multiple
         round-robin groups
-Version: 1.0.5
-Date: 2011-02-09
+Version: 1.0.6
+Date: 2011-03-02
 Author: S.C. Schmukle, F.D. Schönbrodt and M.D. Back
 Maintainer: Felix Schönbrodt <felix.schoenbrodt@psy.lmu.de>
-Depends: reshape, plyr
-Suggests: ggplot2, lme4
+Depends: reshape, plyr, ggplot2
+Suggests: lme4
 Description: Social Relation Model (SRM) analyses for single or
         multiple round-robin groups are performed. These analyses are
         either based on one manifest variable, one latent construct
@@ -20,6 +20,6 @@ Description: Social Relation Model (SRM) analyses for single or
         handling for missing values is provided.
 License: GPL (>= 2)
 LazyLoad: yes
-Packaged: 2011-02-09 14:42:37 UTC; Felix
+Packaged: 2011-03-11 08:51:12 UTC; Felix
 Repository: CRAN
-Date/Publication: 2011-02-10 06:52:47
+Date/Publication: 2011-03-11 16:08:17
