@@ -46,6 +46,9 @@ selfCor <- function(x, digits=3, measure=NA) {
 			rownames(res)[2] <- rownames(res0)[2] <-paste(rownames(res)[2], "(self-other agreement)")
 		}
 		
+		if (x$varComp[1,2] <= 0) {res[1,] <- NA}
+		if (x$varComp[2,2] <= 0) {res[2,] <- NA}
+		
 		print(res)
 		cat("\n\n")
 		

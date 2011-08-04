@@ -1,9 +1,9 @@
-5720c7a633296d4c365b3c0daa1cd71d *DESCRIPTION
+adfaa959e15a0ec8de2a1658185e7346 *DESCRIPTION
 2b186f6cf6e70183c83341c327e98137 *NAMESPACE
 d5b593baa7b30feed71b72b0108c13ef *NEWS
 f7ed9f075c484b473dd1036f61a71091 *R/RR.r
 52cca9c7ded0b264c6d7148f653e862d *R/parCor.r
-944446b8380c815fc9e55c121e7714a2 *R/selfCor.r
+ff257d49d398ce236e9ad2793c76fe73 *R/selfCor.r
 b006d683b868971bf0847a171f47bfee *TripleR-Ex.R
 ea7cf09610daa291b899715c607b694e *data/likingLong.tab.gz
 4d33272eeddd3dcad3d8b244fe0d7a97 *data/liking_a.tab.gz
@@ -14,7 +14,7 @@ d6f7e7d50001bafaae3a190736519b45 *data/liking_b.tab.gz
 12a8bc62141df508348d6e8553da3dc0 *data/multiLikingLong.tab.gz
 4ef3348a43f778a9fc0a4bd5aa2782ab *data/multiNarc.tab.gz
 8cff63ae23006615874588afa749cf8b *inst/CITATION
-224c7c70301651ee44224d25d7830b97 *inst/doc/TripleR.pdf
+6a6108c9284a23fff7f1fd341e1ae305 *inst/doc/TripleR.pdf
 7ffba837e496260e47c06d1741d7d4b4 *inst/doc/index.html
 082a68d2e5282e0d2a080a7da8578a0e *man/RR.Rd
 d8210d3729cfd74f6562b29f32ed8012 *man/RR.style.Rd
