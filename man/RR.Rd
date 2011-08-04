@@ -15,7 +15,8 @@
 The function RR performs Social Relation Model (SRM) analyses for single or multiple round-robin groups. 
 }
 \usage{
-RR(formula, data, na.rm=FALSE, minData=1, verbose=TRUE, g.id=NULL, index="", exclude.ids="", ...)
+RR(formula, data, na.rm=FALSE, minData=1, verbose=TRUE, g.id=NULL, index="", 
+	exclude.ids="", varname=NA, ...)
 }
 
 
@@ -28,6 +29,7 @@ RR(formula, data, na.rm=FALSE, minData=1, verbose=TRUE, g.id=NULL, index="", exc
 \item{g.id}{For internal use only; do not set this parameter}
 \item{index}{set \code{index = 'enhance'} for additionally requesting an index for self enhancement (self rating - perceiver effect - target effect - group mean of self ratings; Kwan, John, Kenny, Bond, & Robins, 2004) along with the actor and partner effects.}
 \item{exclude.ids}{For internal use only; do not set this parameter}
+\item{varname}{The name stem of the effects variables. By default, this is the first variable passed in the formula. In case of latent constructs, however, it might be preferable to set a new name for the latent construct.}
 \item{...}{Further undocumented or internal arguments passed to the function}
 }
 \details{
@@ -36,7 +38,7 @@ Please note: detailed instructions on how to use the TripleR package are provide
 The estimation of the parameters of the Social Relation Model (SRM) is based on formulae provided by Kenny (1994; p. 236-244). For tests of significance of a single group, Triple R computes standard errors by using formulae published by Bond and Lashley (1996) for the case of a univariate SRM analysis. The formulae for the standard errors of the bivariate SRM parameters were kindly provided to us by C.F. Bond in personal communication. If multiple groups are provided, by default a between-group t-test is employed to calculate the significance. If you have very few groups with a considerable size (n>15), even in the multiple group scenario it might be preferable to use the within-group test of significance. You can inspect the within-group test of significance for each of the multiple groups in the return value (see \code{groups.univariate}).
 
 The formula to specify the round robin design has following notation:
-\code{DV ~ actor.id * partner.id | group.id} (group.id is only provided if multiple groups are present). If two variables are used to describe one latent construct, both are connected with a slash on the left hand side: \code{DV1a/DV1b ~ actor.id * partner.id}. If two variables are used to describe two manifest constructs, both are connected with a \code{+} on the left hand side: \code{DV1+DV2 ~ actor.id * partner.id}. A latent analysis of two constructs would be notated as following: \code{DV1a/DV1b + DV2a/DV2b ~ actor.id * partner.id}.
+\code{DV ~ perceiver.id * target.id | group.id} (group.id is only provided if multiple groups are present). If two variables are used to describe one latent construct, both are connected with a slash on the left hand side: \code{DV1a/DV1b ~ perceiver.id * target.id}. If two variables are used to describe two manifest constructs, both are connected with a \code{+} on the left hand side: \code{DV1+DV2 ~ perceiver.id * target.id}. A latent analysis of two constructs would be notated as following: \code{DV1a/DV1b + DV2a/DV2b ~ perceiver.id * target.id}.
 
 
 Data sets from the Mainz Freshman Study (see Back, Schmukle, & Egloff, in press) are included (liking_a, liking_b, metaliking_a, metaliking_b, likingLong), as well as an additional data set containing missing values (multiGroup)
@@ -78,6 +80,9 @@ In the multiple group case, following values are returned:
 \item{varComp.group}{a list of variance components in all single groups}
 \item{group.var}{group variance estimate}
 
+
+If self ratings are present in the data set, the function also prints the correlation between self ratings and actor/partner effects. In case of multiple groups, these are corrected for group membership (partial correlations). These correlations with self-ratings can also directly be computed with the function \code{\link{selfCor}}. Partial correlations to external (non-SRM) variables can be computed with the function \code{\link{parCor}}
+
 }
 
 
@@ -118,7 +123,7 @@ Lashley, B. R., & Bond, C. F., Jr. (1997). Significance testing for round robin 
 \author{Stefan C. Schmukle, Felix D. Schönbrodt & Mitja D. Back}
 
 \seealso{
-\code{\link{RR.style}}, \code{\link{getEffects}}, \code{\link{plot_missings}}, \code{\link{long2matrix}}, \code{\link{matrix2long}}, \code{\link{plot.RRuni}}, \code{\link{RR.summary}}
+\code{\link{RR.style}}, \code{\link{getEffects}}, \code{\link{plot_missings}}, \code{\link{long2matrix}}, \code{\link{matrix2long}}, \code{\link{plot.RRuni}}, \code{\link{RR.summary}}, \code{\link{selfCor}}, \code{\link{parCor}}
 }
 
 \examples{
@@ -140,16 +145,22 @@ data("likingLong")
 
 
 #manifest univariate SRM analysis
-RR1 <- RR(liking_a ~ actor.id*partner.id, data=likingLong)
+RR1 <- RR(liking_a ~ perceiver.id*target.id, data=likingLong)
 
 #manifest bivariate SRM analysis
-RR2 <- RR(liking_a + metaliking_a ~ actor.id*partner.id, data=likingLong)
+RR2 <- RR(liking_a + metaliking_a ~ perceiver.id*target.id, data=likingLong)
 
 #latent (construct-level) univariate SRM analysis
-RR3 <- RR(liking_a / liking_b ~ actor.id*partner.id, data=likingLong)
+RR3 <- RR(liking_a / liking_b ~ perceiver.id*target.id, data=likingLong)
+
+#latent (construct-level) univariate SRM analysis, define new variable name for the latent construct
+RR3b <- RR(liking_a / liking_b ~ perceiver.id*target.id, data=likingLong, varname="liking")
+# compare:
+head(RR3$effects)
+head(RR3b$effects)
 
 #latent (construct-level) bivariate SRM analysis
-RR4 <- RR(liking_a/liking_b + metaliking_a/metaliking_b ~ actor.id*partner.id, data=likingLong)
+RR4 <- RR(liking_a/liking_b + metaliking_a/metaliking_b ~ perceiver.id*target.id, data=likingLong)
 
 
 # prints output of the manifest univariate analysis
@@ -186,16 +197,16 @@ data("multiLikingLong")
 RR.style("perception")
 
 #manifest univariate SRM analysis
-RR1m <- RR(liking_a ~ actor.id*partner.id|group.id, data=multiLikingLong)
+RR1m <- RR(liking_a ~ perceiver.id*target.id|group.id, data=multiLikingLong)
 
 #manifest bivariate SRM analysis
-RR2m <- RR(liking_a + metaliking_a ~ actor.id*partner.id|group.id, data=multiLikingLong)
+RR2m <- RR(liking_a + metaliking_a ~ perceiver.id*target.id|group.id, data=multiLikingLong)
 
 #latent (construct-level) univariate SRM analysis
-RR3m <- RR(liking_a / liking_b ~ actor.id*partner.id|group.id, data=multiLikingLong)
+RR3m <- RR(liking_a / liking_b ~ perceiver.id*target.id|group.id, data=multiLikingLong)
 
 #latent (construct-level) bivariate SRM analysis
-RR4m <- RR(liking_a/liking_b + metaliking_a/metaliking_b ~ actor.id*partner.id|group.id, data=multiLikingLong)
+RR4m <- RR(liking_a/liking_b + metaliking_a/metaliking_b ~ perceiver.id*target.id|group.id, data=multiLikingLong)
 
 # prints output of the manifest univariate analysis
 # in terms of actor and partner variance (default output labels)
@@ -215,11 +226,11 @@ print(RR1m, measure1="perception")
 data("multiGroup")
 
 #manifest univariate SRM analysis, data set with missings
-RR1miss <- RR(ex~actor.id*partner.id|group.id, data=multiGroup, na.rm=TRUE)
+RR1miss <- RR(ex~perceiver.id*target.id|group.id, data=multiGroup, na.rm=TRUE)
 
 #manifest univariate SRM analysis, data set with missings, 
 # minimum 10 data points are requested for each participant
-RR1miss <- RR(ex~actor.id*partner.id|group.id, data=multiGroup, na.rm=TRUE, minData=10)
+RR1miss <- RR(ex~perceiver.id*target.id|group.id, data=multiGroup, na.rm=TRUE, minData=10)
 
 
 }

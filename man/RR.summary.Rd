@@ -11,7 +11,7 @@ RR.summary(formule, data)
 }
 
 \arguments{
-\item{formule}{A formula specifying the variable names. Example usage: \code{DV ~ actor.id*partner.id | group.id} (group.id only necessary in multi group data sets)}
+\item{formule}{A formula specifying the variable names. Example usage: \code{DV ~ perceiver.id*target.id | group.id} (group.id only necessary in multi group data sets)}
 \item{data}{A data frame in long format)}
 }
 
@@ -23,5 +23,5 @@ Printed output
 \examples{
 
 data("multiGroup")
-RR.summary(ex~actor.id*partner.id|group.id, data=multiGroup) 
+RR.summary(ex~perceiver.id*target.id|group.id, data=multiGroup) 
 }

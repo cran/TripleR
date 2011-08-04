@@ -1,4 +1,39 @@
 #------------------------------------------------------------
+# ---- Changes in TripleR version 1.1.0  ----------------------
+#------------------------------------------------------------
+
+NEW FEATURES
+
+- added new user-visible function 'parCor' which computes partial correlations between variables, controlled for group membership. This can be used to compute partial correlations between SRA effects and external variables like age, personality scales, etc. See help file for an example.
+- If self ratings are present, partial correlations of self-ratings with actor and partner effects are printed in the standard output (controlled for group membership if multiple groups are present)
+- function RR now has a new parameter "varname". In latent analysis where two variables are combined to one latent construct, this latent variable now is called "varname" in RR$effects, e.g.:
+
+	RR3 <- RR(liking_a / liking_b ~ actor.id*partner.id, data=likingLong)
+	#latent (construct-level) univariate SRM analysis, define new variable name for the latent construct
+	RR3b <- RR(liking_a / liking_b ~ actor.id*partner.id, data=likingLong, varname="liking")
+	# compare:
+	head(RR3$effects)
+	head(RR3b$effects)
+
+
+ADDITIONALLY
+
+- renamed variables in demo data sets to perceiver.id and target.id (as they are about interpersonal perception)
+
+
+BUG FIXES
+
+- fixed a minor bug in getEffects / long2matrix were corrupt groups led to a crash
+- fixed wrong column names in multiple group
+
+#------------------------------------------------------------
+# ---- Changes in TripleR version 1.0.7  ----------------------
+#------------------------------------------------------------
+
+- added a group id column to the relationship effects
+- prepared a helper function to convert relationship effects from long format (which is the default output of the RR function) to wide format. Long format is best suited for subsequent MLM analyses, wide format is needed for SEM analyses.
+
+#------------------------------------------------------------
 # ---- Changes in TripleR version 1.0.6  ----------------------
 #------------------------------------------------------------
 

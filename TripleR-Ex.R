@@ -36,16 +36,22 @@ data("likingLong")
 
 
 #manifest univariate SRM analysis
-RR1 <- RR(liking_a ~ actor.id*partner.id, data=likingLong)
+RR1 <- RR(liking_a ~ perceiver.id*target.id, data=likingLong)
 
 #manifest bivariate SRM analysis
-RR2 <- RR(liking_a + metaliking_a ~ actor.id*partner.id, data=likingLong)
+RR2 <- RR(liking_a + metaliking_a ~ perceiver.id*target.id, data=likingLong)
 
 #latent (construct-level) univariate SRM analysis
-RR3 <- RR(liking_a / liking_b ~ actor.id*partner.id, data=likingLong)
+RR3 <- RR(liking_a / liking_b ~ perceiver.id*target.id, data=likingLong)
+
+#latent (construct-level) univariate SRM analysis, define new variable name for the latent construct
+RR3b <- RR(liking_a / liking_b ~ perceiver.id*target.id, data=likingLong, varname="liking")
+# compare:
+head(RR3$effects)
+head(RR3b$effects)
 
 #latent (construct-level) bivariate SRM analysis
-RR4 <- RR(liking_a/liking_b + metaliking_a/metaliking_b ~ actor.id*partner.id, data=likingLong)
+RR4 <- RR(liking_a/liking_b + metaliking_a/metaliking_b ~ perceiver.id*target.id, data=likingLong)
 
 
 # prints output of the manifest univariate analysis
@@ -82,16 +88,16 @@ data("multiLikingLong")
 RR.style("perception")
 
 #manifest univariate SRM analysis
-RR1m <- RR(liking_a ~ actor.id*partner.id|group.id, data=multiLikingLong)
+RR1m <- RR(liking_a ~ perceiver.id*target.id|group.id, data=multiLikingLong)
 
 #manifest bivariate SRM analysis
-RR2m <- RR(liking_a + metaliking_a ~ actor.id*partner.id|group.id, data=multiLikingLong)
+RR2m <- RR(liking_a + metaliking_a ~ perceiver.id*target.id|group.id, data=multiLikingLong)
 
 #latent (construct-level) univariate SRM analysis
-RR3m <- RR(liking_a / liking_b ~ actor.id*partner.id|group.id, data=multiLikingLong)
+RR3m <- RR(liking_a / liking_b ~ perceiver.id*target.id|group.id, data=multiLikingLong)
 
 #latent (construct-level) bivariate SRM analysis
-RR4m <- RR(liking_a/liking_b + metaliking_a/metaliking_b ~ actor.id*partner.id|group.id, data=multiLikingLong)
+RR4m <- RR(liking_a/liking_b + metaliking_a/metaliking_b ~ perceiver.id*target.id|group.id, data=multiLikingLong)
 
 # prints output of the manifest univariate analysis
 # in terms of actor and partner variance (default output labels)
@@ -111,11 +117,11 @@ print(RR1m, measure1="perception")
 data("multiGroup")
 
 #manifest univariate SRM analysis, data set with missings
-RR1miss <- RR(ex~actor.id*partner.id|group.id, data=multiGroup, na.rm=TRUE)
+RR1miss <- RR(ex~perceiver.id*target.id|group.id, data=multiGroup, na.rm=TRUE)
 
 #manifest univariate SRM analysis, data set with missings, 
 # minimum 10 data points are requested for each participant
-RR1miss <- RR(ex~actor.id*partner.id|group.id, data=multiGroup, na.rm=TRUE, minData=10)
+RR1miss <- RR(ex~perceiver.id*target.id|group.id, data=multiGroup, na.rm=TRUE, minData=10)
 
 
 
@@ -136,10 +142,10 @@ flush(stderr()); flush(stdout())
 data("likingLong")
 
 RR.style("behavior")
-RR(liking_a ~ actor.id*partner.id, data=likingLong)
+RR(liking_a ~ perceiver.id*target.id, data=likingLong)
 
 RR.style("p")	# a "p" is enough for "perception"
-RR(liking_a ~ actor.id*partner.id, data=likingLong)
+RR(liking_a ~ perceiver.id*target.id, data=likingLong)
 
 
 
@@ -158,7 +164,7 @@ flush(stderr()); flush(stdout())
 
 
 data("multiGroup")
-RR.summary(ex~actor.id*partner.id|group.id, data=multiGroup) 
+RR.summary(ex~perceiver.id*target.id|group.id, data=multiGroup) 
 
 
 
@@ -176,7 +182,7 @@ flush(stderr()); flush(stdout())
 
 
 data(likingLong)
-res <- getEffects(~actor.id*partner.id, data=likingLong, varlist=c("liking_a", "liking_b", "metaliking_a", "metaliking_b"))
+res <- getEffects(~perceiver.id*target.id, data=likingLong, varlist=c("liking_a", "liking_b", "metaliking_a", "metaliking_b"))
 str(res)
 
 
@@ -199,11 +205,11 @@ flush(stderr()); flush(stdout())
 data("multiGroup")
 
 str(multiGroup)
-qm <- long2matrix(ex~actor.id*partner.id|group.id, multiGroup)
+qm <- long2matrix(ex~perceiver.id*target.id|group.id, multiGroup)
 qm[[2]]
 
 # we see some warnings that some persons are only actors or only partners. Let's check the data without removing them:
-qm2 <- long2matrix(ex~actor.id*partner.id|group.id, multiGroup, reduce=FALSE)
+qm2 <- long2matrix(ex~perceiver.id*target.id|group.id, multiGroup, reduce=FALSE)
 qm2[[2]]
  
 
@@ -238,6 +244,46 @@ str(long)
 
 
 cleanEx()
+nameEx("parCor")
+### * parCor
+
+flush(stderr()); flush(stdout())
+
+### Name: parCor
+### Title: partial correlation
+### Aliases: parCor
+### Keywords: htest
+
+### ** Examples
+
+data(multiGroup)
+data(multiNarc)
+
+# the function 'head' shows the first few lines of a data structure:
+head(multiNarc)
+
+# calculate SRA effects for extraversion ratings
+RR.style("p")
+RR1 <- RR(ex ~ perceiver.id * target.id | group.id, multiGroup, na.rm=TRUE)
+
+# merge variables to one data set
+dat <- merge(RR1$effects, multiNarc, by="id")
+
+# We now have a combined data set with SRA effects and external self ratings:
+head(dat)
+
+# function parCor(x, y, z) computes partial correlation between x and y, controlled for group membership z
+d1 <- parCor(dat$ex.t, dat$narc, dat$group.id)
+d1
+
+
+# disattenuate for target effect reliability
+parCor2 <- d1$par.cor * (1/sqrt(attr(RR1$effects$ex.t, "reliability")))
+parCor2
+
+
+
+cleanEx()
 nameEx("plot.RRuni")
 ### * plot.RRuni
 
@@ -250,23 +296,50 @@ flush(stderr()); flush(stdout())
 ### ** Examples
 
 	data(likingLong)
-	RR1 <- RR(liking_a ~ actor.id*partner.id, data=likingLong)
+	RR1 <- RR(liking_a ~ perceiver.id*target.id, data=likingLong)
 	plot(RR1)
 	plot(RR1, geom="pie")
 	
-	RR2 <- RR(liking_a + metaliking_a ~ actor.id*partner.id, data=likingLong)
+	RR2 <- RR(liking_a + metaliking_a ~ perceiver.id*target.id, data=likingLong)
 	plot(RR2)
 	
 	
 	data("multiLikingLong")
-	RR1m <- RR(liking_a ~ actor.id*partner.id|group.id, data=multiLikingLong)
+	RR1m <- RR(liking_a ~ perceiver.id*target.id|group.id, data=multiLikingLong)
 	plot(RR1m)
 	plot(RR1m, measure="perception")
 	plot(RR1m, measure="perception", geom="bar")
 	plot(RR1m, measure="perception", connect=TRUE)
 
-	RR2m <- RR(liking_a + metaliking_a ~ actor.id*partner.id|group.id, data=multiLikingLong)
+	RR2m <- RR(liking_a + metaliking_a ~ perceiver.id*target.id|group.id, data=multiLikingLong)
 	plot(RR2m)
+
+
+
+cleanEx()
+nameEx("selfCor")
+### * selfCor
+
+flush(stderr()); flush(stdout())
+
+### Name: selfCor
+### Title: partial correlation
+### Aliases: selfCor
+### Keywords: htest
+
+### ** Examples
+
+data(multiGroup)
+
+RR.style("p")
+# a single group
+RR1 <- RR(ex~perceiver.id*target.id, data=multiGroup[multiGroup$group.id=="2", ], na.rm=TRUE)
+selfCor(RR1)
+
+# multiple groups
+RR2 <- RR(ex~perceiver.id*target.id|group.id, data=multiGroup, na.rm=TRUE)
+selfCor(RR2)
+
 
 
 

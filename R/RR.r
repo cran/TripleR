@@ -70,7 +70,7 @@ RR.summary <- function(formule, data) {
 	cat(paste("Mean:",round(mean(gs), 2))); cat("\n\n")
 }
 
-# set options for printing reults etc.
+# set options for printing results etc.
 # style = c("behavior", "perception")
 RR.style <- function(style="behavior", suffixes=NA) {
 	localOptions$style <- style <- match.arg(style, c("behavior", "perception"))
@@ -169,8 +169,10 @@ long2matrix <- function(formule, data, minData=1, verbose=TRUE, reduce=TRUE, ski
 		}
 			
 			
-		if (length(p2) <= 1 & verbose==TRUE) {
-			warning(paste("Warning: The provided data of group",g,"are not in round robin format!"), call.=FALSE);
+		if (length(p2) <= 1) {
+			if (verbose==TRUE){
+				warning(paste("Warning: The provided data of group",g,"are not in round robin format!"), call.=FALSE);
+			}
 			next();
 		}
 			
@@ -400,9 +402,11 @@ impute <- function(RRMatrix, na.rm="meansNA", stress.max = 0.01, maxIt=100) {
 
 
 # calculates Actor-, Partner- and Relationship-Effects from a single RR-Matrix
-RR.effects <- function(RRMatrix, name=NA, na.rm=FALSE, index="") {
+RR.effects <- function(RRMatrix, name=NA, na.rm=FALSE, index="", varname="NA") {
 
-	if (!is.null(attr(RRMatrix, "varname"))) name <- attr(RRMatrix, "varname")
+	if (!is.na(varname)) {name <- varname} else {
+		if (!is.null(attr(RRMatrix, "varname"))) name <- attr(RRMatrix, "varname")
+	}
 	
 	RRold <- RRMatrix		
 	if (na.rm & sum(is.na(RRMatrix))>nrow(RRMatrix)) {
@@ -436,12 +440,15 @@ RR.effects <- function(RRMatrix, name=NA, na.rm=FALSE, index="") {
 
 
 	# actor and partner effects
+	self <- FALSE
 	
 	if (!is.null(attr(RRMatrix, "self.ratings"))) {
+		self <- TRUE
 		self.centered <- attr(RRMatrix, "self.ratings")-mean(attr(RRMatrix, "self.ratings"), na.rm=TRUE)
 		
 		eff <- data.frame(id = rownames(RRMatrix), actor=a, partner=b, self=self.centered)
 		if (!is.null(name)) {colnames(eff)[2:4] <- paste(name, localOptions$suffixes, sep="")}
+		attr(eff[,4], "type") <- "self"
 		
 		## Add selfenhancement index?
 		if (index != "") {
@@ -457,6 +464,9 @@ RR.effects <- function(RRMatrix, name=NA, na.rm=FALSE, index="") {
 		if (!is.null(name)) {colnames(eff)[2:3] <- paste(name, localOptions$suffixes[1:2], sep="")}
 	}
 	
+	attr(eff[,2], "type") <- "actor"
+	attr(eff[,3], "type") <- "partner"
+	
 	
 	
 	## Relationship effects
@@ -464,6 +474,8 @@ RR.effects <- function(RRMatrix, name=NA, na.rm=FALSE, index="") {
 	effRel <- melt(c)
 	effRel <- effRel[apply(effRel, 1, function(x) {x[1] != x[2]}),]
 	colnames(effRel) <- c("actor.id", "partner.id", "relationship")
+	effRel[,1] <- factor(effRel[,1])
+	effRel[,2] <- factor(effRel[,2])
 	
 	# sort relEffects according to dyad
 	digits <- floor(log10(n))+1
@@ -493,6 +505,7 @@ RR.effects <- function(RRMatrix, name=NA, na.rm=FALSE, index="") {
 		res <- list(actor = a, partner = b, relationship = c, eff=eff, effRel=effRel, eff.gm=eff.gm)
 	}
 	
+	attr(res, "self") <- self
 	
 	return(res)
 }
@@ -501,8 +514,7 @@ RR.effects <- function(RRMatrix, name=NA, na.rm=FALSE, index="") {
 
 
 # calculates variance components from a single RR-Matrix
-# na.rm = TRUE / FALSE / "impute" (<- not implemented yet)
-RR.univariate <- function(RRMatrix, na.rm=FALSE, verbose=TRUE, corr.fac="1", index="") {
+RR.univariate <- function(RRMatrix, na.rm=FALSE, verbose=TRUE, corr.fac="1", index="", varname=NA) {
 	
 	if (is.null(RRMatrix)) return();
 	
@@ -535,7 +547,7 @@ RR.univariate <- function(RRMatrix, na.rm=FALSE, verbose=TRUE, corr.fac="1", ind
 		}
 	}
 	
-	eff <- RR.effects(RRMatrix, name=attr(RRMatrix, "varname"), na.rm=na.rm, index=index)
+	eff <- RR.effects(RRMatrix, name=attr(RRMatrix, "varname"), na.rm=na.rm, index=index, varname=varname)
 	
 	A <- sum(eff$actor^2)/(n-1)
 	B <- sum(eff$partner^2)/(n-1)
@@ -628,12 +640,18 @@ RR.univariate <- function(RRMatrix, na.rm=FALSE, verbose=TRUE, corr.fac="1", ind
 	univariate[1:3,][univariate$estimate[1:3]<0,3:6] <- NaN
 	if (saa <= 0 | sbb <= 0) {univariate[5,3:6] <- NaN}
 	if (scc <= 0) {univariate[6,3:6] <- NaN}
-
+	
 
 	res <- list(effects = eff$eff, effectsRel = eff$effRel, effects.gm = eff$eff.gm, varComp = univariate, relMat.av=e, relMat.diff=d, group.size=n, latent=FALSE, anal.type="Univariate analysis of one round robin variable", n.NA = n.NA)
 	class(res) <- "RRuni"
 	attr(res, "group.size") <- n
 	attr(res, "varname") <- attr(RRMatrix, "varname")
+	attr(res, "self") <- attr(eff, "self")
+	
+	# if self ratings are present: add to results object
+	dummy <- capture.output(self <- invisible(selfCor(res)))
+	if (!is.null(self)) {res[["selfCor"]] <- self}
+	
 	return(res)
 }
 
@@ -644,7 +662,7 @@ RR.univariate <- function(RRMatrix, na.rm=FALSE, verbose=TRUE, corr.fac="1", ind
 # latent = FALSE: both matrices are treated as independent variables
 # noCorrection = TRUE: even if univariate estimates are negative, bivariate covariances are NOT set to NA (this is necessary, when the manifest bivariat results are transferred into the bivariate latent analysis, see TAG1)
 
-RR.bivariate <- function(RRMatrix1, RRMatrix2, analysis="manifest", na.rm=FALSE, verbose=TRUE, noCorrection=FALSE, index="") {
+RR.bivariate <- function(RRMatrix1, RRMatrix2, analysis="manifest", na.rm=FALSE, verbose=TRUE, noCorrection=FALSE, index="", varname=NA) {
 	
 	if (!(analysis %in% c("latent", "manifest"))) stop("Parameter 'analysis' must either be 'latent' or 'manifest'. Calculations aborted.")
 	
@@ -675,8 +693,8 @@ RR.bivariate <- function(RRMatrix1, RRMatrix2, analysis="manifest", na.rm=FALSE,
 	rownames(RRMatrix1) <- rownames(RRMatrix2) <- colnames(RRMatrix1) <- colnames(RRMatrix2) <- dimn
 	
 	
-	RR.1 <- RR.univariate(RRMatrix1, na.rm, verbose, index=index)
-	RR.2 <- RR.univariate(RRMatrix2, na.rm, verbose, index=index)	
+	RR.1 <- RR.univariate(RRMatrix1, na.rm, verbose, index=index, varname=varname)
+	RR.2 <- RR.univariate(RRMatrix2, na.rm, verbose, index=index, varname=varname)	
 	varComp.1 <- RR.1$varComp$estimate
 	varComp.2 <- RR.2$varComp$estimate
 	n <- nrow(RRMatrix1)
@@ -879,10 +897,17 @@ if (analysis=="manifest") {
 	colnames(eff3) <- colnames(RR.1$effects)
 	eff <- eff3
 	
+	attr(eff[,2], "type") <- "actor"
+	attr(eff[,3], "type") <- "partner"
+	if (ncol(eff)==4) attr(eff[,4], "type") <- "self"
+	
 	eff2 <- (as.matrix(RR.1$effects.gm[,-1]) + as.matrix(RR.2$effects.gm[,-1])) / 2
 	eff3 <- data.frame(RR.1$effects.gm$id, eff2)
 	colnames(eff3) <- colnames(RR.1$effects.gm)
 	eff.gm <- eff3
+	attr(eff.gm[,2], "type") <- "actor"
+	attr(eff.gm[,3], "type") <- "partner"
+	
 	
 	effRel2 <- merge(RR.1$effectsRel, RR.2$effectsRel, by=c("actor.id", "partner.id", "dyad"))
 	effRel2$relationship <- apply(effRel2[,c("relationship.x", "relationship.y")], 1, mean, na.rm=TRUE)
@@ -897,6 +922,7 @@ if (analysis=="manifest") {
 	res <- list(effects = eff, effects.gm=eff.gm, effectsRel=effRel, varComp=results, unstabdycov1=unstabdycov1, unstabper1=unstabper1, unstabtar1=unstabtar1, unstabrel1=unstabrel1, unstable.raw=unstable.raw, latent=TRUE, anal.type="Latent construct analysis of one construct measured by two round robin variables")
 	attr(res, "group.size") <- n
 	attr(res, "varname") <- paste(attr(RR.1, "varname"), attr(RR.2, "varname"), sep="/")
+	if ((attr(RR.1, "self") == TRUE) & (attr(RR.2, "self") == TRUE)) {attr(res, "self") <- TRUE} else {attr(res, "self") <- FALSE}
 	class(res) <- "RRuni"
 }
 
@@ -918,7 +944,7 @@ ifg <- function(g) {
 
 
 # Wrapper function: depending on parameters, different results are calculated:
-RR <- function(formula, data, na.rm=FALSE, minData = 1, verbose=TRUE, g.id=NULL, index="", exclude.ids="", ...) {
+RR <- function(formula, data, na.rm=FALSE, minData = 1, verbose=TRUE, g.id=NULL, index="", exclude.ids="", varname=NA, ...) {
 
 	extra <- list(...)
 
@@ -941,7 +967,7 @@ RR <- function(formula, data, na.rm=FALSE, minData = 1, verbose=TRUE, g.id=NULL,
 
 	# if a grouping factor is provided: forward to RR.multi
 	if (!is.null(group.id)) {
-		return(RR.multi(f1, data=data, na.rm=na.rm, verbose=verbose, index=index, minData=minData, exclude.ids=exclude.ids, ...));
+		return(RR.multi(f1, data=data, na.rm=na.rm, verbose=verbose, index=index, minData=minData, exclude.ids=exclude.ids, varname=varname, ...));
 	}
 
 
@@ -1016,9 +1042,12 @@ if (is.null(RRMatrix1) & is.null(RRMatrix2) & is.null(RRMatrix3) & is.null(RRMat
 #- One group
 
 	if (is.null(RRMatrix2) & is.null(RRMatrix3) & is.null(RRMatrix4)) {
-		if (analysis=="latent") stop("Warning: analysis='latent' only is valid, when two different RRMatrices for one latent construct are given")
+		if (analysis=="latent") {
+			return(NULL);
+			# warning("Warning: analysis='latent' only is valid, when two different RRMatrices for one latent construct are given")
+		}
 		
-		res <- RR.univariate(RRMatrix1, na.rm, verbose, index=index)
+		res <- RR.univariate(RRMatrix1, na.rm, verbose, index=index, varname=varname)
 		return(res)
 	}
 	
@@ -1031,7 +1060,7 @@ if (is.null(RRMatrix1) & is.null(RRMatrix2) & is.null(RRMatrix3) & is.null(RRMat
 			# if (verbose) {warning("Error: One of both round robin matrices has to few participants!", call.=FALSE)}
 			return();
 		}
-		res <- RR.bivariate(RRMatrix1, RRMatrix2, analysis=analysis, na.rm=na.rm, verbose=verbose, index=index)
+		res <- RR.bivariate(RRMatrix1, RRMatrix2, analysis=analysis, na.rm=na.rm, verbose=verbose, index=index, varname=varname)
 		return(res);
 	}
 	
@@ -1043,8 +1072,8 @@ if (is.null(RRMatrix1) & is.null(RRMatrix2) & is.null(RRMatrix3) & is.null(RRMat
 		
 		
 		# calculate latent effects for both constructs
-		lat1.full <- RR.bivariate(RRMatrix1, RRMatrix2, analysis="latent", na.rm=na.rm, verbose=FALSE, index=index)
-		lat2.full <- RR.bivariate(RRMatrix3, RRMatrix4, analysis="latent", na.rm=na.rm, verbose=FALSE, index=index)
+		lat1.full <- RR.bivariate(RRMatrix1, RRMatrix2, analysis="latent", na.rm=na.rm, verbose=FALSE, index=index, varname=varname)
+		lat2.full <- RR.bivariate(RRMatrix3, RRMatrix4, analysis="latent", na.rm=na.rm, verbose=FALSE, index=index, varname=varname)
 		lat1 <- lat1.full$varComp$estimate
 		lat2 <- lat2.full$varComp$estimate
 				
@@ -1268,7 +1297,7 @@ getWTest <- function(RR0, res1, typ="univariate", uni1=NA, uni2=NA, unstable=NA)
 
 
 
-RR.multi.uni <- function(formule, data, na.rm=FALSE, verbose=TRUE, index="", minData=1, exclude.ids="", ...) {
+RR.multi.uni <- function(formule, data, na.rm=FALSE, verbose=TRUE, index="", minData=1, exclude.ids="", varname=NA, ...) {
 
 	# this function needs data in long format ...
 	extra <- list(...)
@@ -1291,30 +1320,28 @@ RR.multi.uni <- function(formule, data, na.rm=FALSE, verbose=TRUE, index="", min
 	saa <- sbb <- scc <- sccs <- n.m <- c()
 	undc1 <- unp1 <- unt1 <- unr1 <- un.raw  <- c()
 	
+	self <- FALSE	# are self ratings present?
+	
 	for (g in names(table(data[,group.id]))) {
 		
 		#print(g)
+		RR0 <- RR(f1, data=data[data[,group.id] == g,], verbose=verbose, na.rm=na.rm, g.id=group.id, index=index, minData=minData, exclude.ids=exclude.ids, varname=varname, ...)
 		
-		RR0 <- RR(f1, data=data[data[,group.id] == g,], verbose=verbose, na.rm=na.rm, g.id=group.id, index=index, minData=minData, exclude.ids=exclude.ids, ...)
+		#print(str(RR0))
+
+		if (is.null(RR0)) {next;} else {RR1 <- RR0}
+		if (attr(RR0, "self") == TRUE) {self <- TRUE}
 		g.id <- g
-
-		if (is.null(RR0)) {next;} else
-		{RR1 <- g.uni[[g]] <- RR0}
 		
-		g.uni[[g]]$group.id <- g.id
-		RR0$effects$group.id <- g.id
-		RR0$effects <- RR0$effects[,c(1,ncol(RR0$effects),2:(ncol(RR0$effects)-1))] # reorder so that group.id is after id and not at the end
-		
-
-		RR0$effectsRel$group.id <- g.id
+		RR0$group.id <- g.id
 
 		if (RR0$latent==FALSE) {
 			RR0$effects.gm$group.id <- g.id
-			RR0$effects.gm <- RR0$effects.gm[,c(1,ncol(RR0$effects.gm),2:(ncol(RR0$effects.gm)-1))]
 		} else {
 			eff.gm <- list(relationship=NA)
 		}
 		
+		g.uni[[g]] <- RR0
 		
 		if (RR0$latent==FALSE) {
 			saa <- c(saa, RR0$varComp[1,2])
@@ -1340,21 +1367,30 @@ RR.multi.uni <- function(formule, data, na.rm=FALSE, verbose=TRUE, index="", min
 		
 	}
 
-
-
 	# aus der liste die Effekte extrahieren und zusammenfügen
 	effect <- ldply(g.uni, function(x) {return(x$effects)})
 	effect[,1:2] <- effect[,2:1]
 	colnames(effect)[1:2] <- c("id", "group.id")
+	effect[,1] <- factor(effect[,1])
+	effect[,2] <- factor(effect[,2])
 	
+	for (ty in 2:ncol(g.uni[[1]]$effects)) {
+		attr(effect[,(ty+1)], "type") <- attr(g.uni[[1]]$effects[,ty], "type")
+	}
+
 	eff.gm <- ldply(g.uni, function(x) {return(x$effects.gm)})
 	eff.gm[,1:2] <- eff.gm[,2:1]
 	colnames(eff.gm)[1:2] <- c("id", "group.id")
+	eff.gm[,1] <- factor(eff.gm[,1])
+	eff.gm[,2] <- factor(eff.gm[,2])
 	
 	effectRel <- ldply(g.uni, function(x) {return(x$effectsRel)})
-	effectRel[,1:3] <- effectRel[,c(2,3,1)]
-	colnames(effectRel)[1:3] <- c("id", all.vars(f1)[2:3])
-
+	colnames(effectRel)[1:3] <- c("group.id", all.vars(f1)[2:3])
+	
+	effectRel[,1] <- factor(effectRel[,1])
+	effectRel[,2] <- factor(effectRel[,2])
+	effectRel[,3] <- factor(effectRel[,3])
+	effectRel[,4] <- factor(effectRel[,4])
 
 	# im latenten Fall: die Error variance erst am Ende berechnen (d.h., alle error componenten ueber alle Gruppen mitteln, die unter NUll auf Null setzen, dann addieren)
 	
@@ -1431,6 +1467,7 @@ RR.multi.uni <- function(formule, data, na.rm=FALSE, verbose=TRUE, index="", min
 		res2 <- list(effects = effect, effectsRel = effectRel, effects.gm = eff.gm, varComp = varComp, groups = g.uni, varComp.groups=res, group.var=group.var, anal.type=anal.type)
 		class(res2) <- "RRmulti"
 		attr(res2, "varname") <- attr(g.uni[[1]], "varname")
+		attr(res2, "self") <- self
 		
 		# # noch rausfinden, welche Teilnehmer ausgeschlossen wurden
 		# l1 <- long2matrix(formule, data, verbose=FALSE)
@@ -1607,7 +1644,7 @@ plot_missings <- function(formule, data, show.ids=TRUE) {
 }
 
 
-RR.multi <- function(formule, data, na.rm=FALSE, verbose=TRUE, index="", minData=1, exclude.ids="", ...) {
+RR.multi <- function(formule, data, na.rm=FALSE, verbose=TRUE, index="", minData=1, exclude.ids="", varname=NA, ...) {
 
 	# this function needs data in long format ...
 	extra <- list(...)
@@ -1632,7 +1669,7 @@ RR.multi <- function(formule, data, na.rm=FALSE, verbose=TRUE, index="", minData
 
 
 
-	if (mode=="uni") return(RR.multi.uni(formule, data, na.rm, verbose, index=index, minData=minData, exclude.ids=exclude.ids, ...))
+	if (mode=="uni") return(RR.multi.uni(formule, data, na.rm, verbose, index=index, minData=minData, exclude.ids=exclude.ids, varname=varname, ...))
 
 	# ... ansonsten bi-mode durchführen
 	
@@ -1771,6 +1808,8 @@ print.uni <- function(x, ..., measure=NA, digits=3, r.names=NULL) {
 	# Relationship effect reliability
 	if (!is.null(attr(x$effectsRel$relationship, "reliability"))) print(paste(role[[measure]][3], "effect reliability:",f2(attr(x$effectsRel$relationship, "reliability"), 3)))
 	
+	selfCor(x, measure=measure)
+	
 	# if (any(uni[1:2,2]<0.10) | any(is.na(uni[1:2,2]))) print(paste("Warning:",rownames(uni)[5],"should NOT be interpreted if standardized actor or partner variance is < 10%!"))
 	# if (uni[3,2]<0.10 | is.na(uni[3,2])) print(paste("Warning:",rownames(uni)[6],"should NOT be interpreted if standardized relationship variance is < 10%!"))
 }
@@ -1848,3 +1887,21 @@ print.RR <- function(x, ..., measure1=NA, measure2=NA, digits=3, measure=NULL) {
 	
 	
 }
+
+
+
+
+
+
+#------------------------------------------------------------
+# ----  Helper functions --------------------------------------
+#------------------------------------------------------------
+
+long2wide <- function(eff) {
+	library(reshape)
+	eff$swip <- rep(c(1:2), length.out=nrow(eff))
+	melt(eff, measure.vars="relationship", id.vars=c(1,4))
+	cast(eff, group.id+dyad~swip, value="relationship")
+}
+
+#long2wide(R1$effectsRel)

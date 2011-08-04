@@ -29,22 +29,22 @@ A ggplot2 object is returned - that means, you can subsequently adjust the scale
 
 \examples{
 	data(likingLong)
-	RR1 <- RR(liking_a ~ actor.id*partner.id, data=likingLong)
+	RR1 <- RR(liking_a ~ perceiver.id*target.id, data=likingLong)
 	plot(RR1)
 	plot(RR1, geom="pie")
 	
-	RR2 <- RR(liking_a + metaliking_a ~ actor.id*partner.id, data=likingLong)
+	RR2 <- RR(liking_a + metaliking_a ~ perceiver.id*target.id, data=likingLong)
 	plot(RR2)
 	
 	
 	data("multiLikingLong")
-	RR1m <- RR(liking_a ~ actor.id*partner.id|group.id, data=multiLikingLong)
+	RR1m <- RR(liking_a ~ perceiver.id*target.id|group.id, data=multiLikingLong)
 	plot(RR1m)
 	plot(RR1m, measure="perception")
 	plot(RR1m, measure="perception", geom="bar")
 	plot(RR1m, measure="perception", connect=TRUE)
 
-	RR2m <- RR(liking_a + metaliking_a ~ actor.id*partner.id|group.id, data=multiLikingLong)
+	RR2m <- RR(liking_a + metaliking_a ~ perceiver.id*target.id|group.id, data=multiLikingLong)
 	plot(RR2m)
 }
 

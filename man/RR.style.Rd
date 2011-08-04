@@ -26,10 +26,10 @@ Printing options and naming conventions are set for all subsequent analyses. If 
 data("likingLong")
 
 RR.style("behavior")
-RR(liking_a ~ actor.id*partner.id, data=likingLong)
+RR(liking_a ~ perceiver.id*target.id, data=likingLong)
 
 RR.style("p")	# a "p" is enough for "perception"
-RR(liking_a ~ actor.id*partner.id, data=likingLong)
+RR(liking_a ~ perceiver.id*target.id, data=likingLong)
 
 }
 
