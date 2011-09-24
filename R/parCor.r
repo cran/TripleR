@@ -3,7 +3,10 @@
 # p values are corrected for loss of df
 parCor <- function(x,y,z) {
 	if (sd(c(length(x), length(y), length(z))) != 0) stop("x, y, and z need to have the same length!")
-	if (var(x, na.rm=TRUE) == 0 | var(y, na.rm=TRUE) == 0) stop("parCor: One or both variables have zero variance; skipping partial correlations!")
+	if (noVar(x) | noVar(y)) {
+		warning("parCor: One or both variables have zero variance; skipping partial correlations!")
+		return(NULL)
+	}
 	
 	df <- na.omit(data.frame(x, y, z))
 	
@@ -19,7 +22,7 @@ parCor <- function(x,y,z) {
 	dfs <- n-2-k
 	
 	t.value <- par.cor * sqrt(dfs/(1-(par.cor^2)))
-	p.value <- (1-pt(t.value, df=dfs, lower.tail = TRUE))*2   # always test two-sided
+	p.value <- (1-pt(abs(t.value), df=dfs, lower.tail = TRUE))*2   # always test two-sided
 
 	return(list(par.cor=par.cor, t.value=t.value, df=dfs, p=p.value))
 }

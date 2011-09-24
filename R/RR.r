@@ -8,6 +8,7 @@
 localOptions <- new.env(parent=globalenv())
 localOptions$suffixes <- c(".a", ".p", ".s")
 localOptions$style <- "behavior"
+localOptions$minVar <- 0
 
 role <- list()
 role$behavior <- c("Actor", "Partner", "Relationship")
@@ -72,7 +73,7 @@ RR.summary <- function(formule, data) {
 
 # set options for printing results etc.
 # style = c("behavior", "perception")
-RR.style <- function(style="behavior", suffixes=NA) {
+RR.style <- function(style="behavior", suffixes=NA, minVar=NA) {
 	localOptions$style <- style <- match.arg(style, c("behavior", "perception"))
 	
 	if (is.na(suffixes)) {
@@ -84,6 +85,12 @@ RR.style <- function(style="behavior", suffixes=NA) {
 		}
 	} else {
 		localOptions$suffixes <- suffixes
+	}
+	
+	if (is.na(minVar)) {
+		localOptions$minVar <- 0
+	} else {
+		localOptions$minVar <- minVar
 	}
 }
 
@@ -618,7 +625,7 @@ RR.univariate <- function(RRMatrix, na.rm=FALSE, verbose=TRUE, corr.fac="1", ind
 	
 	se <- c(ifelse(estimate[1:3]>=0,c(sesaa,sesbb,sescc),NaN),NA,sesab,sesccs)
 	t.value <- estimate/se
-	p.value <- dt(t.value, n-1)
+	p.value <- 1-pt(abs(t.value), n-1)
 	# Kovarianzen werden zweiseitig getestet:
 	p.value[4:5] <- p.value[4:5]*2
 	
@@ -640,7 +647,6 @@ RR.univariate <- function(RRMatrix, na.rm=FALSE, verbose=TRUE, corr.fac="1", ind
 	univariate[1:3,][univariate$estimate[1:3]<0,3:6] <- NaN
 	if (saa <= 0 | sbb <= 0) {univariate[5,3:6] <- NaN}
 	if (scc <= 0) {univariate[6,3:6] <- NaN}
-	
 
 	res <- list(effects = eff$eff, effectsRel = eff$effRel, effects.gm = eff$eff.gm, varComp = univariate, relMat.av=e, relMat.diff=d, group.size=n, latent=FALSE, anal.type="Univariate analysis of one round robin variable", n.NA = n.NA)
 	class(res) <- "RRuni"
@@ -649,6 +655,7 @@ RR.univariate <- function(RRMatrix, na.rm=FALSE, verbose=TRUE, corr.fac="1", ind
 	attr(res, "self") <- attr(eff, "self")
 	
 	# if self ratings are present: add to results object
+	#print(attr(RRMatrix, "group.id"))
 	dummy <- capture.output(self <- invisible(selfCor(res)))
 	if (!is.null(self)) {res[["selfCor"]] <- self}
 	
@@ -838,7 +845,7 @@ if (analysis=="manifest") {
 	
 	se <- c(sesaf,sesbg,sesag,sesbf,sesch,seschs)
 	t.value <- c(taf,tbg,tag,tbf,tch,tchs)
-	pvalues <- dt(t.value, n-1)*2 	# alles Kovarianzen, daher zweiseitig testen!
+	pvalues <- 1-pt(abs(t.value), n-1)*2 	# alles Kovarianzen, daher zweiseitig testen!
 	bivariate <- data.frame(type=bilabels_bb, estimate, standardized, se, t.value, p.value=pvalues)
 	
 	if (noCorrection==FALSE) {
@@ -866,7 +873,7 @@ if (analysis=="manifest") {
 	# se, t, und p werden aus dem bivariaten Fall übernommen
 	se <- c(sestabpervar1,sestabtarvar1,sestabrelvar1,NA,(sesag+sesbf)/2,seschs)
 	tvalues<-c(tstabpervar1,tstabtarvar1,tstabrelvar1,NA,stabapcov1/((sesag+sesbf)/2),tchs)
-	pvalues <- dt(tvalues, n-1)
+	pvalues <- (1-pt(abs(tvalues), n-1))
 	pvalues[4:5] <- pvalues[4:5]*2
 	
 	results <- data.frame(type=unilabels_b, estimate=unstand,standardized=stand,se=se,t.value=tvalues, p.value=pvalues)
@@ -899,7 +906,7 @@ if (analysis=="manifest") {
 	
 	attr(eff[,2], "type") <- "actor"
 	attr(eff[,3], "type") <- "partner"
-	if (ncol(eff)==4) attr(eff[,4], "type") <- "self"
+	if (ncol(eff)>=4) attr(eff[,4], "type") <- "self"
 	
 	eff2 <- (as.matrix(RR.1$effects.gm[,-1]) + as.matrix(RR.2$effects.gm[,-1])) / 2
 	eff3 <- data.frame(RR.1$effects.gm$id, eff2)
@@ -943,8 +950,19 @@ ifg <- function(g) {
 }
 
 
+checkVar <- function(x, minVar=0) {
+	if (is.null(minVar)) return(FALSE)
+	if (is.na(minVar)) return(FALSE)
+	if (is.null(x)) return(TRUE)
+	if (is.nan(x)) return(TRUE)
+	if (is.na(x)) return(TRUE)
+	if (x < minVar) return(TRUE)
+	return(FALSE)
+}
+
+
 # Wrapper function: depending on parameters, different results are calculated:
-RR <- function(formula, data, na.rm=FALSE, minData = 1, verbose=TRUE, g.id=NULL, index="", exclude.ids="", varname=NA, ...) {
+RR <- function(formula, data, na.rm=FALSE, minData = 1, verbose=TRUE, g.id=NULL, index="", exclude.ids="", varname=NA, minVar=localOptions$minVar, ...) {
 
 	extra <- list(...)
 
@@ -967,7 +985,55 @@ RR <- function(formula, data, na.rm=FALSE, minData = 1, verbose=TRUE, g.id=NULL,
 
 	# if a grouping factor is provided: forward to RR.multi
 	if (!is.null(group.id)) {
-		return(RR.multi(f1, data=data, na.rm=na.rm, verbose=verbose, index=index, minData=minData, exclude.ids=exclude.ids, varname=varname, ...));
+		res <- RR.multi(f1, data=data, na.rm=na.rm, verbose=verbose, index=index, minData=minData, exclude.ids=exclude.ids, varname=varname, ...)
+		
+		if (!is.null(res$univariate)) {
+			
+			# bivariate case
+			
+			# if variance < minVar: set effects to NA
+			if (!is.na(minVar)) {
+				if (checkVar(res$univariate[[1]]$varComp[1, 3], minVar)) {
+					res$univariate[[1]]$effects[,3][1:nrow(res$univariate[[1]]$effects)] <- NA
+					res$univariate[[1]]$effects.gm[,3][1:nrow(res$univariate[[1]]$effects)] <- NA
+				}
+				if (checkVar(res$univariate[[1]]$varComp[2, 3], minVar)) {
+					res$univariate[[1]]$effects[,4][1:nrow(res$univariate[[1]]$effects)] <- NA
+					res$univariate[[1]]$effects.gm[,4][1:nrow(res$univariate[[1]]$effects)] <- NA
+
+				}
+				if (checkVar(res$univariate[[2]]$varComp[1, 3], minVar)) {
+					res$univariate[[2]]$effects[,3][1:nrow(res$univariate[[1]]$effects)] <- NA
+					res$univariate[[2]]$effects.gm[,3][1:nrow(res$univariate[[1]]$effects)] <- NA
+				}
+				if (checkVar(res$univariate[[2]]$varComp[2, 3], minVar)) {
+					res$univariate[[2]]$effects[,4][1:nrow(res$univariate[[1]]$effects)] <- NA
+					res$univariate[[2]]$effects.gm[,4][1:nrow(res$univariate[[1]]$effects)] <- NA
+
+				}
+			}
+			
+			
+		} else {
+				# if variance < minVar: set effects to NA
+				if (!is.na(minVar)) {
+					if (checkVar(res$varComp[1, 3], minVar)) {
+						res$effects[,3][1:nrow(res$effects)] <- NA
+						res$effects.gm[,3][1:nrow(res$effects)] <- NA
+					}
+					if (checkVar(res$varComp[2, 3], minVar)) {
+						res$effects[,4][1:nrow(res$effects)] <- NA
+						res$effects.gm[,4][1:nrow(res$effects)] <- NA
+
+					}
+				}
+		}
+		
+		res$minVar <- minVar
+		for (g in 1:length(res$groups)) res$groups[[g]]$minVar <- minVar
+		
+		return(res)
+		
 	}
 
 
@@ -1048,6 +1114,22 @@ if (is.null(RRMatrix1) & is.null(RRMatrix2) & is.null(RRMatrix3) & is.null(RRMat
 		}
 		
 		res <- RR.univariate(RRMatrix1, na.rm, verbose, index=index, varname=varname)
+		
+		# if variance < minVar: set effects to NA
+		if (!is.na(minVar)) {
+			if (checkVar(res$varComp[1, 3], minVar)) {
+				res$effects[,2][1:nrow(res$effects)] <- NA
+				res$effects.gm[,2][1:nrow(res$effects)] <- NA
+			}
+			if (checkVar(res$varComp[2, 3], minVar)) {
+				res$effects[,3][1:nrow(res$effects)] <- NA
+				res$effects.gm[,3][1:nrow(res$effects)] <- NA
+				
+			}
+		}
+		
+		res$minVar <- minVar
+		
 		return(res)
 	}
 	
@@ -1061,6 +1143,50 @@ if (is.null(RRMatrix1) & is.null(RRMatrix2) & is.null(RRMatrix3) & is.null(RRMat
 			return();
 		}
 		res <- RR.bivariate(RRMatrix1, RRMatrix2, analysis=analysis, na.rm=na.rm, verbose=verbose, index=index, varname=varname)
+		
+		if (!is.null(res$univariate)) {
+			
+			# bivariate case
+			
+			# if variance < minVar: set effects to NA
+			if (!is.na(minVar)) {
+				if (checkVar(res$univariate[[1]]$varComp[1, 3], minVar)) {
+					res$univariate[[1]]$effects[,3][1:nrow(res$univariate[[1]]$effects)] <- NA
+					res$univariate[[1]]$effects.gm[,3][1:nrow(res$univariate[[1]]$effects)] <- NA
+				}
+				if (checkVar(res$univariate[[1]]$varComp[2, 3], minVar)) {
+					res$univariate[[1]]$effects[,4][1:nrow(res$univariate[[1]]$effects)] <- NA
+					res$univariate[[1]]$effects.gm[,4][1:nrow(res$univariate[[1]]$effects)] <- NA
+
+				}
+				if (checkVar(res$univariate[[2]]$varComp[1, 3], minVar)) {
+					res$univariate[[2]]$effects[,3][1:nrow(res$univariate[[1]]$effects)] <- NA
+					res$univariate[[2]]$effects.gm[,3][1:nrow(res$univariate[[1]]$effects)] <- NA
+				}
+				if (checkVar(res$univariate[[2]]$varComp[2, 3], minVar)) {
+					res$univariate[[2]]$effects[,4][1:nrow(res$univariate[[1]]$effects)] <- NA
+					res$univariate[[2]]$effects.gm[,4][1:nrow(res$univariate[[1]]$effects)] <- NA
+
+				}
+			}
+			
+			
+		} else {
+				# if variance < minVar: set effects to NA
+				if (!is.na(minVar)) {
+					if (checkVar(res$varComp[1, 3], minVar)) {
+						res$effects[,3][1:nrow(res$effects)] <- NA
+						res$effects.gm[,3][1:nrow(res$effects)] <- NA
+					}
+					if (checkVar(res$varComp[2, 3], minVar)) {
+						res$effects[,4][1:nrow(res$effects)] <- NA
+						res$effects.gm[,4][1:nrow(res$effects)] <- NA
+
+					}
+				}
+		}
+		
+		res$minVar <- minVar
 		return(res);
 	}
 	
@@ -1119,6 +1245,31 @@ if (is.null(RRMatrix1) & is.null(RRMatrix2) & is.null(RRMatrix3) & is.null(RRMat
 		class(grandres) <- "RR"
 		grandres$anal.type <- "Bivariate analysis of two constructs, each measured by two round robin variables"
 		attr(grandres, "group.size") <- nrow(RRMatrix2)
+		
+		
+			# if variance < minVar: set effects to NA
+			if (!is.na(minVar)) {
+				if (checkVar(grandres$univariate[[1]]$varComp[1, 3], minVar)) {
+					grandres$univariate[[1]]$effects[,3][1:nrow(grand$univariate[[1]]$effects)] <- NA
+					grandres$univariate[[1]]$effects.gm[,3][1:nrow(grand$univariate[[1]]$effects)] <- NA
+				}
+				if (checkVar(grandres$univariate[[1]]$varComp[2, 3], minVar)) {
+					grandres$univariate[[1]]$effects[,4][1:nrow(grand$univariate[[1]]$effects)] <- NA
+					grandres$univariate[[1]]$effects.gm[,4][1:nrow(grand$univariate[[1]]$effects)] <- NA
+
+				}
+				if (checkVar(grandres$univariate[[2]]$varComp[1, 3], minVar)) {
+					grandres$univariate[[2]]$effects[,3][1:nrow(grand$univariate[[1]]$effects)] <- NA
+					grandres$univariate[[2]]$effects.gm[,3][1:nrow(grand$univariate[[1]]$effects)] <- NA
+				}
+				if (checkVar(grandres$univariate[[2]]$varComp[2, 3], minVar)) {
+					grandres$univariate[[2]]$effects[,4][1:nrow(grand$univariate[[1]]$effects)] <- NA
+					grandres$univariate[[2]]$effects.gm[,4][1:nrow(grand$univariate[[1]]$effects)] <- NA
+
+				}
+			}
+
+		grandres$minVar <- minVar
 		return(grandres)		
 	} else {
 		# warning("Error: One of the round robin matrices has to few participants!", call.=FALSE)
@@ -1325,7 +1476,7 @@ RR.multi.uni <- function(formule, data, na.rm=FALSE, verbose=TRUE, index="", min
 	for (g in names(table(data[,group.id]))) {
 		
 		#print(g)
-		RR0 <- RR(f1, data=data[data[,group.id] == g,], verbose=verbose, na.rm=na.rm, g.id=group.id, index=index, minData=minData, exclude.ids=exclude.ids, varname=varname, ...)
+		RR0 <- RR(f1, data=data[data[,group.id] == g,], verbose=verbose, na.rm=na.rm, g.id=group.id, index=index, minData=minData, exclude.ids=exclude.ids, varname=varname, minVar=NA, ...)
 		
 		#print(str(RR0))
 
@@ -1374,8 +1525,12 @@ RR.multi.uni <- function(formule, data, na.rm=FALSE, verbose=TRUE, index="", min
 	effect[,1] <- factor(effect[,1])
 	effect[,2] <- factor(effect[,2])
 	
-	for (ty in 2:ncol(g.uni[[1]]$effects)) {
-		attr(effect[,(ty+1)], "type") <- attr(g.uni[[1]]$effects[,ty], "type")
+	print(effect)
+	print(str(effect))
+	
+	type <- c("actor", "partner", "self")
+	for (ty in 3:ncol(effect)) {
+		attr(effect[,ty], "type") <- type[ty-2]
 	}
 
 	eff.gm <- ldply(g.uni, function(x) {return(x$effects.gm)})
@@ -1696,7 +1851,7 @@ RR.multi <- function(formule, data, na.rm=FALSE, verbose=TRUE, index="", minData
 	
 	for (g in names(table(data[,group.id]))) {
 		
-			RR0 <- RR(f1, data=data[data[,group.id] == g,], verbose=FALSE, na.rm=na.rm, minData=minData, exclude.ids=ex3)
+			RR0 <- RR(f1, data=data[data[,group.id] == g,], verbose=FALSE, na.rm=na.rm, minData=minData, exclude.ids=ex3, minVar=NA)
 			
 			if (is.null(RR0)) {next;} else
 			{RR1 <- bi.groups[[g]]  <- RR0}
@@ -1722,14 +1877,14 @@ RR.multi <- function(formule, data, na.rm=FALSE, verbose=TRUE, index="", minData
 
 
 
-getEffects <- function(formule, data, varlist, by=NA, na.rm=TRUE, ...) {
+getEffects <- function(formule, data, varlist, by=NA, na.rm=TRUE, minVar=localOptions$minVar, ...) {
 
 	# run a RR analysis for each variable and store results in a list
 	res_list <- list()
 	for (v in 1:length(varlist)) {
 		print(paste("Calculate:",varlist[v]))
 		f1 <- formula(paste(varlist[v], paste(as.character(formule), collapse="")))
-		RR1 <- RR(f1, data=data, na.rm=na.rm, verbose=FALSE, ...)
+		RR1 <- RR(f1, data=data, na.rm=na.rm, verbose=FALSE, minVar=minVar, ...)
 		
 		eff <- RR1$effects
 		res_list <- c(res_list, list(eff))
@@ -1764,12 +1919,16 @@ print.RRbi <- function(x, ...) {
 
 # simple wrapper: formats a number in f.2 format
 f2 <- function(x, digits=3, prepoint=0) {
-	gsub("0.", ".", sprintf(paste("%",prepoint,".",digits,"f",sep=""), x) , fixed=TRUE)
+	if (length(dim(x)) == 2) {
+		apply(x, 2, function(x2) {gsub("0.", ".", sprintf(paste("%",prepoint,".",digits,"f",sep=""), x2) , fixed=TRUE)})
+	} else {
+		gsub("0.", ".", sprintf(paste("%",prepoint,".",digits,"f",sep=""), x) , fixed=TRUE)
+	}
 }
 
 
 # x muss hier direkt auf das univariate-Objekt verweisen
-print.uni <- function(x, ..., measure=NA, digits=3, r.names=NULL) {
+print.uni <- function(x, ..., measure=NA, digits=3, r.names=NULL, minVar=0) {
 	
 	# print descriptivers for multi group
 	if (length(x$groups) > 1) {
@@ -1779,8 +1938,12 @@ print.uni <- function(x, ..., measure=NA, digits=3, r.names=NULL) {
 		 print(paste("Group descriptives: n = ",length(x$groups),"; average group size = ",av.groupsize, "; range: ", min(groupsizes), "-", max(groupsizes)))
 	}
 	
-	uni <- round(x$varComp[,2:ncol(x$varComp)], digits)
+	uni <- round(x$varComp[,2:ncol(x$varComp)], digits)	
 	
+	if (checkVar(uni[1, 2], minVar)) {uni[5, 2:5] <- NA}
+	if (checkVar(uni[2, 2], minVar)) {uni[5, 2:5] <- NA}
+	if (checkVar(uni[3, 2], minVar)) {uni[6, 2:5] <- NA}
+		
 	if (is.na(measure)) {
 		measure <- localOptions$style
 	} else {
@@ -1809,9 +1972,6 @@ print.uni <- function(x, ..., measure=NA, digits=3, r.names=NULL) {
 	if (!is.null(attr(x$effectsRel$relationship, "reliability"))) print(paste(role[[measure]][3], "effect reliability:",f2(attr(x$effectsRel$relationship, "reliability"), 3)))
 	
 	selfCor(x, measure=measure)
-	
-	# if (any(uni[1:2,2]<0.10) | any(is.na(uni[1:2,2]))) print(paste("Warning:",rownames(uni)[5],"should NOT be interpreted if standardized actor or partner variance is < 10%!"))
-	# if (uni[3,2]<0.10 | is.na(uni[3,2])) print(paste("Warning:",rownames(uni)[6],"should NOT be interpreted if standardized relationship variance is < 10%!"))
 }
 
 
@@ -1842,7 +2002,15 @@ print.RR <- function(x, ..., measure1=NA, measure2=NA, digits=3, measure=NULL) {
 		
 		uni <- lapply(x$univariate, function(x) return(x))
 		bi <- round(x$bivariate[,2:ncol(x$bivariate)], digits)
-		
+				
+		# Erase bivariate correlations for variance components < minVar
+		if (checkVar(uni[[1]]$varComp[1, 2], x$minVar)) {bi[c(1,3), 2:5] <- NA}
+		if (checkVar(uni[[1]]$varComp[2, 2], x$minVar)) {bi[c(2,4), 2:5] <- NA}
+		if (checkVar(uni[[1]]$varComp[3, 2], x$minVar)) {bi[c(5,6), 2:5] <- NA}
+		if (checkVar(uni[[2]]$varComp[1, 2], x$minVar)) {bi[c(1,4), 2:5] <- NA}
+		if (checkVar(uni[[2]]$varComp[2, 2], x$minVar)) {bi[c(2,3), 2:5] <- NA}
+		if (checkVar(uni[[2]]$varComp[3, 2], x$minVar)) {bi[c(5,6), 2:5] <- NA}
+		                                     
 		r.names1 <- r.names2 <- NULL
 		if (measure1 == "behavior" & measure2 == "behavior") {
 			rownames(bi) <- bilabels_bb
@@ -1864,10 +2032,10 @@ print.RR <- function(x, ..., measure1=NA, measure2=NA, digits=3, measure=NULL) {
 			stop("This combination of measurement labels does not fit.")
 		}
 		print(paste("Univariate analyses for:", attr(uni[[1]], "varname")))
-		print.uni(uni[[1]], measure=measure1, r.names=r.names1)
+		print.uni(uni[[1]], measure=measure1, r.names=r.names1, minVar=x$minVar)
 		cat("\n")
 		print(paste("Univariate analyses for:", attr(uni[[2]], "varname")))
-		print.uni(uni[[2]], measure=measure2, r.names=r.names2)
+		print.uni(uni[[2]], measure=measure2, r.names=r.names2, minVar=x$minVar)
 		cat("\n")
 		print("Bivariate analyses:")
 		
@@ -1882,7 +2050,7 @@ print.RR <- function(x, ..., measure1=NA, measure2=NA, digits=3, measure=NULL) {
 	# univariate case
 	{
 		print(paste("Univariate analyses for:", attr(x, "varname")))
-		print.uni(x, measure=measure1)
+		print.uni(x, measure=measure1, minVar=x$minVar)
 	}
 	
 	
