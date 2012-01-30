@@ -1,4 +1,20 @@
 #------------------------------------------------------------
+# ---- Changes in TripleR version 1.1.6  ----------------------
+#------------------------------------------------------------
+
+NEW FEATURES
+- An error is printed if actor or partner IDs are not unique (they have to be unique across groups). Non-unique IDs sometimes caused strange errors.
+
+BUG FIXES
+
+- removed an unnecessary print-out of the effects at each calculation
+- established compatibility to the forthcoming 0.9.0 release of ggplot2
+
+IMPROVEMENTS
+
+- reduced size of vignette
+
+#------------------------------------------------------------
 # ---- Changes in TripleR version 1.1.5  ----------------------
 #------------------------------------------------------------
 
@@ -12,7 +28,7 @@ BUG FIXES
 
 NEW FEATURES
 
-- added argument minVar to RR, getEffects, and RR.style. Actor and partners effects are only calculated if the respective relative variance component is greater than minVar. Set minVar to NA if this cleaning should not be performed. For small groups, Kenny (1994) suggests a minimum relative variance of 10% for the interpretation of SRM effects. In any case, actor/ partner effects and correlations with these variables should *not* be interpreted if these components have negative variance estimates. minVar defaults to zero; with RR.style this default can be changed for all subsequent analyses.
+- added argument minVar to RR, getEffects, and RR.style. Actor and partners effects are only calculated if the respective relative variance component is greater than minVar. Set minVar to NA if this cleaning should not be performed. For small groups, Kenny (1994) suggests a minimum relative variance of 10% for the interpretation of SRM effects. In any case, actor/ partner effects and correlations with these variables should *not* be interpreted if these components have negative variance estimates. minVar defaults to zero; with RR.style this default can be changed for all subsequent analyses. If minVar is set to NA, all effects are calculated, regardless of the size of the variance component.
 Bivariate correlations are not printed for variance components < minVar.
 
 #------------------------------------------------------------

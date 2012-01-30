@@ -123,9 +123,15 @@ long2matrix <- function(formule, data, minData=1, verbose=TRUE, reduce=TRUE, ski
 	
 	# What are the group ids?
 	# if only one group, add group variable
-	
 	if (!is.null(group.id)) {if (is.na(group.id)) {group.id <- NULL}}
 	if (!is.null(group.id)) {
+			# Check if IDs are unique across groups
+			t1 <- table(data[, group.id], data[, actor.id])
+			unique <- apply(t1, 2, function(col) {
+				sum(col != 0)
+			})
+			if (any(unique > 1)) stop("Some of your actor or partner IDs are not unique (i.e., different persons in different groups have the same ID). Please make them unique. Calculations are aborted.")
+			
 			group.ids <- names(table(data[,group.id]))
 	} else {
 		if (!is.null(g.id)) {
@@ -240,6 +246,7 @@ long2matrix <- function(formule, data, minData=1, verbose=TRUE, reduce=TRUE, ski
 			
 		}
 		
+		# | length(box)==1
 		if (is.null(box)) {
 			del.groups <- c(del.groups, g)
 			if (verbose==TRUE) {
@@ -845,7 +852,7 @@ if (analysis=="manifest") {
 	
 	se <- c(sesaf,sesbg,sesag,sesbf,sesch,seschs)
 	t.value <- c(taf,tbg,tag,tbf,tch,tchs)
-	pvalues <- 1-pt(abs(t.value), n-1)*2 	# alles Kovarianzen, daher zweiseitig testen!
+	pvalues <- (1-pt(abs(t.value), n-1))*2 	# alles Kovarianzen, daher zweiseitig testen!
 	bivariate <- data.frame(type=bilabels_bb, estimate, standardized, se, t.value, p.value=pvalues)
 	
 	if (noCorrection==FALSE) {
@@ -1525,9 +1532,6 @@ RR.multi.uni <- function(formule, data, na.rm=FALSE, verbose=TRUE, index="", min
 	effect[,1] <- factor(effect[,1])
 	effect[,2] <- factor(effect[,2])
 	
-	print(effect)
-	print(str(effect))
-	
 	type <- c("actor", "partner", "self")
 	for (ty in 3:ncol(effect)) {
 		attr(effect[,ty], "type") <- type[ty-2]
@@ -1677,9 +1681,9 @@ plot.RRmulti <- function(x, ..., measure=NA, geom="scatter", conf.level=0.95, co
 		grouplevel$type2 <- factor(grouplevel$type, levels=unilabels_b, labels=lab)
 		grouplevel$tcrit <- abs(qt((1-conf.level)/2,length(RRm$groups)-1))
 
-		p1 <- ggplot(df, aes(y=estimate), na.rm=TRUE)
+		p1 <- ggplot(df, aes_string(y="estimate"), na.rm=TRUE)
 
-		p1 <- p1 + geom_point(aes(x=(as.numeric(type)+jit.x), size=group.size), alpha=0.6, color="grey60", na.rm=TRUE) + scale_size("Group size", to=c(3,8))
+		p1 <- p1 + geom_point(aes(x=(as.numeric(type)+jit.x), size=group.size), alpha=0.6, color="grey60", na.rm=TRUE) + scale_size("Group size")
 	
 		p1 <- p1 + geom_point(aes(x=(as.numeric(type)+jit.x)), alpha=0.8, color="black", size=0.7, na.rm=TRUE)
 		
@@ -1787,7 +1791,7 @@ plot_missings <- function(formule, data, show.ids=TRUE) {
 	m1[,f0[2]] <- factor(m1[,f0[2]], ordered=TRUE)
 	m1[,f0[3]] <- factor(m1[,f0[3]])
 	
-	p2 <- ggplot(m1, aes_string(x=f0[3], y=f0[2])) + geom_point(aes(color=value2), na.rm=TRUE) + facet_wrap(~L1, scales="free")
+	p2 <- ggplot(m1, aes_string(x=f0[3], y=f0[2])) + geom_point(aes_string(color="value2"), na.rm=TRUE) + facet_wrap(~L1, scales="free")
 	p2 <- p2 + scale_colour_identity("Missing?", breaks=c(0,1), labels=c("no", "yes"), legend=TRUE) 
 	
 	p2 <- p2 + opts(axis.text.x = theme_text(angle = 90, hjust=1, size=7), axis.text.y = theme_text(hjust=1, size=7), title="Missing values", aspect.ratio=1)
@@ -1821,8 +1825,6 @@ RR.multi <- function(formule, data, na.rm=FALSE, verbose=TRUE, index="", minData
 	# Vorlage für die Varianzkomponente erstellen
 	df <- data[data[,group.id]==data[1,group.id],]
 	mode <- ifelse(length(f3)==2,"bi","uni")
-
-
 
 	if (mode=="uni") return(RR.multi.uni(formule, data, na.rm, verbose, index=index, minData=minData, exclude.ids=exclude.ids, varname=varname, ...))
 
@@ -2072,4 +2074,3 @@ long2wide <- function(eff) {
 	cast(eff, group.id+dyad~swip, value="relationship")
 }
 
-#long2wide(R1$effectsRel)

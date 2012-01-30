@@ -48,3 +48,4 @@ A ggplot2 object is returned - that means, you can subsequently adjust the scale
 	plot(RR2m)
 }
 
+
