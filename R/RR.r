@@ -1257,21 +1257,21 @@ if (is.null(RRMatrix1) & is.null(RRMatrix2) & is.null(RRMatrix3) & is.null(RRMat
 			# if variance < minVar: set effects to NA
 			if (!is.na(minVar)) {
 				if (checkVar(grandres$univariate[[1]]$varComp[1, 3], minVar)) {
-					grandres$univariate[[1]]$effects[,3][1:nrow(grand$univariate[[1]]$effects)] <- NA
-					grandres$univariate[[1]]$effects.gm[,3][1:nrow(grand$univariate[[1]]$effects)] <- NA
+					grandres$univariate[[1]]$effects[,3][1:nrow(grandres$univariate[[1]]$effects)] <- NA
+					grandres$univariate[[1]]$effects.gm[,3][1:nrow(grandres$univariate[[1]]$effects)] <- NA
 				}
 				if (checkVar(grandres$univariate[[1]]$varComp[2, 3], minVar)) {
-					grandres$univariate[[1]]$effects[,4][1:nrow(grand$univariate[[1]]$effects)] <- NA
-					grandres$univariate[[1]]$effects.gm[,4][1:nrow(grand$univariate[[1]]$effects)] <- NA
+					grandres$univariate[[1]]$effects[,4][1:nrow(grandres$univariate[[1]]$effects)] <- NA
+					grandres$univariate[[1]]$effects.gm[,4][1:nrow(grandres$univariate[[1]]$effects)] <- NA
 
 				}
 				if (checkVar(grandres$univariate[[2]]$varComp[1, 3], minVar)) {
-					grandres$univariate[[2]]$effects[,3][1:nrow(grand$univariate[[1]]$effects)] <- NA
-					grandres$univariate[[2]]$effects.gm[,3][1:nrow(grand$univariate[[1]]$effects)] <- NA
+					grandres$univariate[[2]]$effects[,3][1:nrow(grandres$univariate[[1]]$effects)] <- NA
+					grandres$univariate[[2]]$effects.gm[,3][1:nrow(grandres$univariate[[1]]$effects)] <- NA
 				}
 				if (checkVar(grandres$univariate[[2]]$varComp[2, 3], minVar)) {
-					grandres$univariate[[2]]$effects[,4][1:nrow(grand$univariate[[1]]$effects)] <- NA
-					grandres$univariate[[2]]$effects.gm[,4][1:nrow(grand$univariate[[1]]$effects)] <- NA
+					grandres$univariate[[2]]$effects[,4][1:nrow(grandres$univariate[[1]]$effects)] <- NA
+					grandres$univariate[[2]]$effects.gm[,4][1:nrow(grandres$univariate[[1]]$effects)] <- NA
 
 				}
 			}
@@ -1645,6 +1645,10 @@ RR.multi.uni <- function(formule, data, na.rm=FALSE, verbose=TRUE, index="", min
 plot.RRmulti <- function(x, ..., measure=NA, geom="scatter", conf.level=0.95, connect=FALSE) {
 	RRm <- x
 	
+	# NULL out gpglot2 variables so that R CMD check is satisfied ...
+	# http://stackoverflow.com/questions/9439256/how-can-i-handle-r-cmd-check-no-visible-binding-for-global-variable-notes-when
+	type <- jit.x <- type2 <- group.size <- estimate <- tcrit <- se <- group.id <- standardized <- NULL
+	
 	if (is.na(measure)) {
 		measure <- localOptions$style
 	} else {
@@ -1681,6 +1685,7 @@ plot.RRmulti <- function(x, ..., measure=NA, geom="scatter", conf.level=0.95, co
 		grouplevel$type2 <- factor(grouplevel$type, levels=unilabels_b, labels=lab)
 		grouplevel$tcrit <- abs(qt((1-conf.level)/2,length(RRm$groups)-1))
 
+		
 		p1 <- ggplot(df, aes_string(y="estimate"), na.rm=TRUE)
 
 		p1 <- p1 + geom_point(aes(x=(as.numeric(type)+jit.x), size=group.size), alpha=0.6, color="grey60", na.rm=TRUE) + scale_size("Group size")
@@ -1699,7 +1704,7 @@ plot.RRmulti <- function(x, ..., measure=NA, geom="scatter", conf.level=0.95, co
 		}
 
 	
-		p1 <- p1 + opts(axis.text.x = theme_text(angle = 0, vjust=1), title=paste("Multiple round robin groups:\nAbsolute (co-)variance estimates\nand",round(conf.level,2)*100,"%-CI (weighted for group size)")) + xlab("")
+		p1 <- p1 + theme(axis.text.x = element_text(angle = 0, vjust=1)) + xlab("") + ggtitle(paste("Multiple round robin groups:\nAbsolute (co-)variance estimates\nand",round(conf.level,2)*100,"%-CI (weighted for group size)"))
 		
 		if (mode=="bi") {
 			p1 <- p1 + facet_wrap(~variable)
@@ -1742,6 +1747,7 @@ plot.RRbi <- function(x, ...) {
 plot.RRuni <- function(x, ..., measure=NA, geom="bar") {
 	
 	RRu <- x
+	standardized <- type2 <- NULL
 	if (is.na(measure)) {
 		measure <- localOptions$style
 	} else {
@@ -1794,10 +1800,10 @@ plot_missings <- function(formule, data, show.ids=TRUE) {
 	p2 <- ggplot(m1, aes_string(x=f0[3], y=f0[2])) + geom_point(aes_string(color="value2"), na.rm=TRUE) + facet_wrap(~L1, scales="free")
 	p2 <- p2 + scale_colour_identity("Missing?", breaks=c(0,1), labels=c("no", "yes"), legend=TRUE) 
 	
-	p2 <- p2 + opts(axis.text.x = theme_text(angle = 90, hjust=1, size=7), axis.text.y = theme_text(hjust=1, size=7), title="Missing values", aspect.ratio=1)
+	p2 <- p2 + theme(axis.text.x = element_text(angle = 90, hjust=1, size=7), axis.text.y = element_text(hjust=1, size=7), aspect.ratio=1) + ggtitle("Missing values")
 	
 	if (show.ids==FALSE) {
-		p2 <- p2 + opts(axis.text.x = theme_text(size=0), axis.text.y = theme_text(size=0))
+		p2 <- p2 + theme(axis.text.x = element_text(size=0), axis.text.y = element_text(size=0))
 	}
 	return(p2)
 }

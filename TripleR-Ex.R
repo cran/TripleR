@@ -31,9 +31,7 @@ flush(stderr()); flush(stdout())
 #liking ratings indicator b (liking_b, "Would you like to get to know this person?")
 #metaliking ratings indicator a (metaliking_a, "How likeable does this person find you?")
 #metaliking ratings indicator b (metaliking_b, "Would this person like to get to know you?")
-
 data("likingLong")
-
 
 #manifest univariate SRM analysis
 RR1 <- RR(liking_a ~ perceiver.id*target.id, data=likingLong)
