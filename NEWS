@@ -3,7 +3,7 @@
 #------------------------------------------------------------
 
 - Minor changes to be compatible with ggplot 0.9.2
-- Finally got rid of the C CMD check warnings about global bindings
+- Finally got rid of the R CMD check warnings about global bindings
 
 #------------------------------------------------------------
 # ---- Changes in TripleR version 1.1.6  ----------------------
