@@ -48,7 +48,9 @@ Felix Schönbrodt
 \examples{
 
 data(likingLong)
-res <- getEffects(~perceiver.id*target.id, data=likingLong, varlist=c("liking_a", "liking_b", "metaliking_a", "metaliking_b"))
+res <- getEffects(~perceiver.id*target.id, 
+				  data=likingLong, 
+				  varlist=c("liking_a", "liking_b", "metaliking_a", "metaliking_b"))
 str(res)
 
 }

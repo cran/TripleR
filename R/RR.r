@@ -41,7 +41,7 @@ bilabels_meta <- c("Perceiver assumed reciprocity","Generalized assumed reciproc
 "Perceiver meta-accuracy", "Generalized meta-accuracy", "Dyadic assumed reciprocity", "Dyadic meta-accuracy")
 
 
-
+#' @export
 RR.summary <- function(formule, data) {
 	# save warnings for later output
 	l <- long2matrix(formule, data)
@@ -73,6 +73,7 @@ RR.summary <- function(formule, data) {
 
 # set options for printing results etc.
 # style = c("behavior", "perception")
+#' @export
 RR.style <- function(style="behavior", suffixes=NA, minVar=NA) {
 	localOptions$style <- style <- match.arg(style, c("behavior", "perception"))
 	
@@ -106,6 +107,7 @@ clamp <- function(...) {
 
 # function takes data in the "long" format and returns a list with quadratic
 # round robin matrices for each group
+#' @export
 long2matrix <- function(formule, data, minData=1, verbose=TRUE, reduce=TRUE, skip3=TRUE, g.id=NULL, exclude.ids=NULL, ...) {
 	
 	extra <- list(...)
@@ -196,7 +198,14 @@ long2matrix <- function(formule, data, minData=1, verbose=TRUE, reduce=TRUE, ski
 		# finally: construct the quadratic matrix
 		f1 <- as.formula(paste(actor.id,"~",partner.id))
 		
-		box <- as.matrix(cast(block.clean, f1, value=var.id, fill=NA))
+		# check for double entries
+		double <- as.matrix(cast(block.clean, f1, value=var.id, fill=NA, fun.aggregate=length))
+		if (any(double > 1, na.rm=TRUE)) {
+			stop(paste0("There are double entries in group ", g, ". Calculations aborted, please remove these double entries."))
+		}
+		
+		box <- as.matrix(cast(block.clean, f1, value=var.id, fill=NA, fun.aggregate=mean))
+		
 		
 		if (reduce==FALSE) {
 			colmiss <- setdiff(levels(as.factor(block[,actor.id])), levels(as.factor(block[,partner.id])))
@@ -314,6 +323,7 @@ clearLongData <- function(formule, data, minData=1) {
 
 
 # function takes data in matrix format and turns them into long format
+#' @export
 matrix2long <- function(M, new.ids=TRUE, var.id="value") {
 	M <- as.matrix(M)
 	if (new.ids) {
@@ -353,7 +363,7 @@ impute <- function(RRMatrix, na.rm="meansNA", stress.max = 0.01, maxIt=100) {
 	colnames(RRMatrix2) <- colnames(RRMatrix)
 	RRMatrix <- RRMatrix2
 	
-	NAs <- is.na(RRMatrix)		# Matrix, die die Position der NAs außerhalb der Diagonale speichert
+	NAs <- is.na(RRMatrix)		# Matrix, die die Position der NAs ausserhalb der Diagonale speichert
 	
 	save.diag <- diag(RRMatrix)	# self ratings aus der Diagonale abspeichern
 	diag(RRMatrix) <- NA
@@ -877,7 +887,7 @@ if (analysis=="manifest") {
 	stand <- clamp(stabperr1, stabtarr1, stabrelr1, unstabler1,stabapcor1,stabdycor1)
 	stand[is.infinite(stand)] <- NaN
 	
-	# se, t, und p werden aus dem bivariaten Fall übernommen
+	# se, t, und p werden aus dem bivariaten Fall uebernommen
 	se <- c(sestabpervar1,sestabtarvar1,sestabrelvar1,NA,(sesag+sesbf)/2,seschs)
 	tvalues<-c(tstabpervar1,tstabtarvar1,tstabrelvar1,NA,stabapcov1/((sesag+sesbf)/2),tchs)
 	pvalues <- (1-pt(abs(tvalues), n-1))
@@ -969,6 +979,7 @@ checkVar <- function(x, minVar=0) {
 
 
 # Wrapper function: depending on parameters, different results are calculated:
+#' @export
 RR <- function(formula, data, na.rm=FALSE, minData = 1, verbose=TRUE, g.id=NULL, index="", exclude.ids="", varname=NA, minVar=localOptions$minVar, ...) {
 
 	extra <- list(...)
@@ -1380,7 +1391,7 @@ getWTest <- function(RR0, res1, typ="univariate", uni1=NA, uni2=NA, unstable=NA)
 
 		
 		
-		# unstable variance im latent bivariaten Fall wird von außen in die Funktion gegeben
+		# unstable variance im latent bivariaten Fall wird von aussen in die Funktion gegeben
 		if (!is.na(unstable)) {
 			varComp[4,2] <- unstable
 		}
@@ -1525,7 +1536,7 @@ RR.multi.uni <- function(formule, data, na.rm=FALSE, verbose=TRUE, index="", min
 		
 	}
 
-	# aus der liste die Effekte extrahieren und zusammenfügen
+	# aus der liste die Effekte extrahieren und zusammenfuegen
 	effect <- ldply(g.uni, function(x) {return(x$effects)})
 	effect[,1:2] <- effect[,2:1]
 	colnames(effect)[1:2] <- c("id", "group.id")
@@ -1642,6 +1653,7 @@ RR.multi.uni <- function(formule, data, na.rm=FALSE, verbose=TRUE, index="", min
 
 # mode = c("scatter", "bar")
 
+#' @S3method plot RRmulti
 plot.RRmulti <- function(x, ..., measure=NA, geom="scatter", conf.level=0.95, connect=FALSE) {
 	RRm <- x
 	
@@ -1739,11 +1751,12 @@ plot.RRmulti <- function(x, ..., measure=NA, geom="scatter", conf.level=0.95, co
 	
 }
 
-
+#' @S3method plot RRbi
 plot.RRbi <- function(x, ...) {
 	plot.RRuni(x, ...)
 }
 
+#' @S3method plot RRuni
 plot.RRuni <- function(x, ..., measure=NA, geom="bar") {
 	
 	RRu <- x
@@ -1780,7 +1793,7 @@ plot.RRuni <- function(x, ..., measure=NA, geom="bar") {
 	return(p1)
 }
 
-
+#' @export
 plot_missings <- function(formule, data, show.ids=TRUE) {
 
 	library(ggplot2)
@@ -1828,13 +1841,13 @@ RR.multi <- function(formule, data, na.rm=FALSE, verbose=TRUE, index="", minData
 	
 	if (sum(grepl("/", f3, fixed=TRUE))>1) {analysis <- "latent"} else {analysis <- "manifest"}
 
-	# Vorlage für die Varianzkomponente erstellen
+	# Vorlage fuer die Varianzkomponente erstellen
 	df <- data[data[,group.id]==data[1,group.id],]
 	mode <- ifelse(length(f3)==2,"bi","uni")
 
 	if (mode=="uni") return(RR.multi.uni(formule, data, na.rm, verbose, index=index, minData=minData, exclude.ids=exclude.ids, varname=varname, ...))
 
-	# ... ansonsten bi-mode durchführen
+	# ... ansonsten bi-mode durchfuehren
 	
 	# find out, which participants are excluded and exclude them from all variables
 	if (analysis=="manifest") {
@@ -1884,7 +1897,7 @@ RR.multi <- function(formule, data, na.rm=FALSE, verbose=TRUE, index="", minData
 
 
 
-
+#' @export
 getEffects <- function(formule, data, varlist, by=NA, na.rm=TRUE, minVar=localOptions$minVar, ...) {
 
 	# run a RR analysis for each variable and store results in a list
@@ -1911,16 +1924,17 @@ getEffects <- function(formule, data, varlist, by=NA, na.rm=TRUE, minVar=localOp
 
 
 
-
+#' @S3method print RRmulti
 print.RRmulti <- function(x, ...) {
 	print.RR(x, ...)
 }
 
-
+#' @S3method print RRuni
 print.RRuni <- function(x, ...) {
 	print.RR(x, ...)
 }
 
+#' @S3method print RRbi
 print.RRbi <- function(x, ...) {
 	print.RR(x, ...)
 }
@@ -2074,7 +2088,6 @@ print.RR <- function(x, ..., measure1=NA, measure2=NA, digits=3, measure=NULL) {
 #------------------------------------------------------------
 
 long2wide <- function(eff) {
-	library(reshape)
 	eff$swip <- rep(c(1:2), length.out=nrow(eff))
 	melt(eff, measure.vars="relationship", id.vars=c(1,4))
 	cast(eff, group.id+dyad~swip, value="relationship")

@@ -48,7 +48,8 @@ dat <- merge(RR1$effects, multiNarc, by="id")
 # We now have a combined data set with SRA effects and external self ratings:
 head(dat)
 
-# function parCor(x, y, z) computes partial correlation between x and y, controlled for group membership z
+# function parCor(x, y, z) computes partial correlation between x and y, 
+# controlled for group membership z
 d1 <- parCor(dat$ex.t, dat$narc, dat$group.id)
 d1
 

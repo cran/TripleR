@@ -7,7 +7,8 @@ This function converts data from the long format to a quadratic round robin matr
 }
 
 \usage{
-long2matrix(formule, data, minData=1, verbose=TRUE, reduce=TRUE, skip3=TRUE, g.id=NULL, exclude.ids=NULL, ...)
+long2matrix(formule, data, minData=1, verbose=TRUE, reduce=TRUE, 
+				skip3=TRUE, g.id=NULL, exclude.ids=NULL, ...)
 }
 
 \arguments{
@@ -39,7 +40,8 @@ str(multiGroup)
 qm <- long2matrix(ex~perceiver.id*target.id|group.id, multiGroup)
 qm[[2]]
 
-# we see some warnings that some persons are only actors or only partners. Let's check the data without removing them:
+# we see some warnings that some persons are only actors or only partners. 
+# Let's check the data without removing them:
 qm2 <- long2matrix(ex~perceiver.id*target.id|group.id, multiGroup, reduce=FALSE)
 qm2[[2]]
  

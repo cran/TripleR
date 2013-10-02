@@ -1,4 +1,19 @@
 #------------------------------------------------------------
+# ---- Changes in TripleR version 1.2.1
+#------------------------------------------------------------
+
+- changed order of authorship
+- much less time for checking examples
+
+#------------------------------------------------------------
+# ---- Changes in TripleR version 1.2
+#------------------------------------------------------------
+
+- Now with correct citation information, see `citation("TripleR")`
+- New sanity check: If double entries are present, now a warning is given. (Before version 1.2, only the uninformative "Aggregation requires fun.aggregate: length used as default" was printed)
+- General R 3.0.2 compability
+
+#------------------------------------------------------------
 # ---- Changes in TripleR version 1.1.7  ----------------------
 #------------------------------------------------------------
 
@@ -10,6 +25,7 @@
 #------------------------------------------------------------
 
 NEW FEATURES
+
 - An error is printed if actor or partner IDs are not unique (they have to be unique across groups). Non-unique IDs sometimes caused strange errors.
 
 BUG FIXES
@@ -27,7 +43,7 @@ IMPROVEMENTS
 
 BUG FIXES
 
-- corrected bug in calculation of p-values for the single group significance test as well as in the parCor function; t-values now are correctly translated into p-values (p-values have been too conservative before; t-values were always correct)
+- corrected bug in calculation of p-values for the single group significance test as well as in the parCor function. t-values now are correctly translated into p-values (p-values have been too conservative before; t-values were always correct)
 
 #------------------------------------------------------------
 # ---- Changes in TripleR version 1.1.4  ----------------------
@@ -36,7 +52,7 @@ BUG FIXES
 NEW FEATURES
 
 - added argument minVar to RR, getEffects, and RR.style. Actor and partners effects are only calculated if the respective relative variance component is greater than minVar. Set minVar to NA if this cleaning should not be performed. For small groups, Kenny (1994) suggests a minimum relative variance of 10% for the interpretation of SRM effects. In any case, actor/ partner effects and correlations with these variables should *not* be interpreted if these components have negative variance estimates. minVar defaults to zero; with RR.style this default can be changed for all subsequent analyses. If minVar is set to NA, all effects are calculated, regardless of the size of the variance component.
-Bivariate correlations are not printed for variance components < minVar.
+- Bivariate correlations are not printed for variance components < minVar.
 
 #------------------------------------------------------------
 # ---- Changes in TripleR version 1.1.0  ----------------------

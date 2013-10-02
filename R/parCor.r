@@ -1,6 +1,7 @@
 # partial correlation between x and y, correct for group membership z.
 # z has to be a factor! (not a continuos variable)
 # p values are corrected for loss of df
+#' @export
 parCor <- function(x,y,z) {
 	if (sd(c(length(x), length(y), length(z))) != 0) stop("x, y, and z need to have the same length!")
 	if (noVar(x) | noVar(y)) {

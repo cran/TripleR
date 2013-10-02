@@ -1,24 +1,14 @@
-citHeader("To cite package 'TripleR' in publications use:")
+citHeader("To cite TripleR in publications use:")
 
-## R >= 2.8.0 passes package metadata to citation().
-if(!exists("meta") || is.null(meta)) meta <- packageDescription("TripleR")
-year <- sub("-.*", "", meta$Date)
-#note <- sprintf("R package version %s", meta$Version)
-title.bibtex <- paste("{TripleR}: A package for round robin analyses using R (version ",meta$Version,")", sep="")
-title <- paste("TripleR: A package for round robin analyses using R (version ",meta$Version,").", sep="")
-
-    
-citEntry(entry = "Manual",
-  title = title.bibtex,
-  author = personList(as.person("Stefan C. Schmukle"),
-                  as.person("Felix D. Schönbrodt"),
-                  as.person("Mitja D. Back")),
-  year = year,
-  url = "http://www.persoc.net/ToolBox/TripleR",
-
-  textVersion =
-  paste("Schmukle, S. C., Schönbrodt, F.D., & Back, M. D.",
-       sprintf("(%s).", year),
-       title,
-        "Retrieved from http://www.persoc.net/ToolBox/TripleR.")
+citEntry(entry = "Article",
+	title = "{TripleR:} An R package for social relations analyses based on round-robin designs",
+	volume = "44",
+	doi = "10.3758/s13428-011-0150-4",
+	number = {2},
+	journal = "Behavior Research Methods",
+	author = c(as.person("Schönbrodt, F. D."), as.person("Back, M. D."), as.person("Schmukle, S. C.")),
+	year = "2012",
+	pages = "455--470",
+	
+	textVersion  = "Schönbrodt, F. D., Back, M. D., & Schmukle, S. C. (2012). TripleR: An R package for social relations analyses based on round-robin designs. Behavior Research Methods, 44, 455-470. doi:10.3758/s13428-011-0150-4"
 )

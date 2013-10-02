@@ -28,6 +28,7 @@ A ggplot2 object is returned - that means, you can subsequently adjust the scale
 }
 
 \examples{
+\dontrun{
 	data(likingLong)
 	RR1 <- RR(liking_a ~ perceiver.id*target.id, data=likingLong)
 	plot(RR1)
@@ -46,6 +47,7 @@ A ggplot2 object is returned - that means, you can subsequently adjust the scale
 
 	RR2m <- RR(liking_a + metaliking_a ~ perceiver.id*target.id|group.id, data=multiLikingLong)
 	plot(RR2m)
+}
 }
 
 

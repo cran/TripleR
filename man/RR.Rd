@@ -147,6 +147,7 @@ data("likingLong")
 #manifest univariate SRM analysis
 RR1 <- RR(liking_a ~ perceiver.id*target.id, data=likingLong)
 
+\dontrun{
 #manifest bivariate SRM analysis
 RR2 <- RR(liking_a + metaliking_a ~ perceiver.id*target.id, data=likingLong)
 
@@ -183,7 +184,7 @@ print(RR3, measure1="perception")
 # appropriate for perception-perception data  
 # Note: you can use abbreviations of the strings "behavior", "perception", and "metaperception"
 print(RR4, measure1="p", measure2="p") 
-
+}
 
 
 #------------------------------------------------------------
@@ -199,6 +200,7 @@ RR.style("perception")
 #manifest univariate SRM analysis
 RR1m <- RR(liking_a ~ perceiver.id*target.id|group.id, data=multiLikingLong)
 
+\dontrun{
 #manifest bivariate SRM analysis
 RR2m <- RR(liking_a + metaliking_a ~ perceiver.id*target.id|group.id, data=multiLikingLong)
 
@@ -206,7 +208,8 @@ RR2m <- RR(liking_a + metaliking_a ~ perceiver.id*target.id|group.id, data=multi
 RR3m <- RR(liking_a / liking_b ~ perceiver.id*target.id|group.id, data=multiLikingLong)
 
 #latent (construct-level) bivariate SRM analysis
-RR4m <- RR(liking_a/liking_b + metaliking_a/metaliking_b ~ perceiver.id*target.id|group.id, data=multiLikingLong)
+RR4m <- RR(liking_a/liking_b + metaliking_a/metaliking_b ~ perceiver.id*target.id|group.id,
+		 		data=multiLikingLong)
 
 # prints output of the manifest univariate analysis
 # in terms of actor and partner variance (default output labels)
@@ -231,7 +234,7 @@ RR1miss <- RR(ex~perceiver.id*target.id|group.id, data=multiGroup, na.rm=TRUE)
 #manifest univariate SRM analysis, data set with missings, 
 # minimum 10 data points are requested for each participant
 RR1miss <- RR(ex~perceiver.id*target.id|group.id, data=multiGroup, na.rm=TRUE, minData=10)
-
+}
 
 }
 

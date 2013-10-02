@@ -15,6 +15,7 @@ noVar <- function(x) {
 }
 
 # x is an univariate RR-object
+#' @export
 selfCor <- function(x, digits=3, measure=NA) {
 		
 	print(attr(x, "group.id"))	
