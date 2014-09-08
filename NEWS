@@ -1,4 +1,12 @@
 #------------------------------------------------------------
+# ---- Changes in TripleR version 1.4
+#------------------------------------------------------------
+
+- getEffects function can now export effects with group means added (set `gm=TRUE`; see ?getEffects)
+- Some changes for CRAN compability, internal restructuring
+
+
+#------------------------------------------------------------
 # ---- Changes in TripleR version 1.2.1
 #------------------------------------------------------------
 

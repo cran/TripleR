@@ -111,18 +111,30 @@ These settings from RR.style, however, can be overwritten for each \code{print} 
 You can plot any RR object using \code{plot(RR)}. See \code{\link{plot.RRuni}} for possible parameters.
 }
 
-\references{ 
-Back, M. D., Schmukle, S. C. & Egloff, B. (in press). A closer look at first sight: Social relations lens model analyses of personality and interpersonal attraction at zero acquaintance. \emph{European Journal of Personality}.
+\references{
 
-Bonito, J. A., & Kenny, D. A. (2010). The measurement of reliability of social relations components from round-robin designs. \emph{Personal Relationships, 17}, 235 - 251.
+The main reference for the TripleR package is:
+\itemize{
+\item{Schönbrodt, F. D., Back, M. D., & Schmukle, S. C. (2012). TripleR: An R package for social relations analyses based on round-robin designs. \emph{Behavior Research Methods, 44}, 455-470. doi:10.3758/s13428-011-0150-4}
+}
 
-Kenny, D. A. (1994). \emph{Interpersonal perception: A social relations analysis}. New York: Guilford Press.
+Please cite this paper if you use TripleR in your research.
 
-Kwan, V. S. Y., John, O. P., Kenny, D. A., Bond, M. H., & Robins, R. W. (2004). Reconceptualizing individual differences in self-enhancement bias: An interpersonal approach. \emph{Psychological Review, 111}, 94–110.
+Further information on SRM and its application:
+\itemize{  
+\item{Back, M. D., Schmukle, S. C. & Egloff, B. (in press). A closer look at first sight: Social relations lens model analyses of personality and interpersonal attraction at zero acquaintance. \emph{European Journal of Personality}.}
 
-Lashley, B. R., & Bond, C. F., Jr. (1997). Significance testing for round robin data. \emph{Psychological Methods}, \emph{2}, 278-291.}
+\item{Bonito, J. A., & Kenny, D. A. (2010). The measurement of reliability of social relations components from round-robin designs. \emph{Personal Relationships, 17}, 235 - 251.}
 
-\author{Stefan C. Schmukle, Felix D. Schönbrodt & Mitja D. Back}
+\item{Kenny, D. A. (1994). \emph{Interpersonal perception: A social relations analysis}. New York: Guilford Press.}
+
+\item{Kwan, V. S. Y., John, O. P., Kenny, D. A., Bond, M. H., & Robins, R. W. (2004). Reconceptualizing individual differences in self-enhancement bias: An interpersonal approach. \emph{Psychological Review, 111}, 94–110.}
+
+\item{Lashley, B. R., & Bond, C. F., Jr. (1997). Significance testing for round robin data. \emph{Psychological Methods}, \emph{2}, 278-291.}}
+}
+
+
+\author{Felix D. Schönbrodt, Mitja D. Back, Stefan C. Schmukle}
 
 \seealso{
 \code{\link{RR.style}}, \code{\link{getEffects}}, \code{\link{plot_missings}}, \code{\link{long2matrix}}, \code{\link{matrix2long}}, \code{\link{plot.RRuni}}, \code{\link{RR.summary}}, \code{\link{selfCor}}, \code{\link{parCor}}

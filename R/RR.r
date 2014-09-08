@@ -105,199 +105,6 @@ clamp <- function(...) {
 }
 
 
-# function takes data in the "long" format and returns a list with quadratic
-# round robin matrices for each group
-#' @export
-long2matrix <- function(formule, data, minData=1, verbose=TRUE, reduce=TRUE, skip3=TRUE, g.id=NULL, exclude.ids=NULL, ...) {
-	
-	extra <- list(...)
-
-	# parse formula
-	#remove spaces from formula
-	lhs <- strsplit(gsub(" ","",as.character(formule)[2], fixed=TRUE), "+", fixed=TRUE)[[1]]
-	rhs <- strsplit(gsub(" ","",as.character(formule)[3], fixed=TRUE),"\\*|\\|", perl=TRUE)[[1]]
-	
-	var.id <- lhs
-	actor.id <- rhs[1]
-	partner.id <- rhs[2]
-	group.id <- NULL
-	if (length(rhs)>=3) {group.id <- rhs[3]}
-	
-	# What are the group ids?
-	# if only one group, add group variable
-	if (!is.null(group.id)) {if (is.na(group.id)) {group.id <- NULL}}
-	if (!is.null(group.id)) {
-			# Check if IDs are unique across groups
-			t1 <- table(data[, group.id], data[, actor.id])
-			unique <- apply(t1, 2, function(col) {
-				sum(col != 0)
-			})
-			if (any(unique > 1)) stop("Some of your actor or partner IDs are not unique (i.e., different persons in different groups have the same ID). Please make them unique. Calculations are aborted.")
-			
-			group.ids <- names(table(data[,group.id]))
-	} else {
-		if (!is.null(g.id)) {
-			group.id <- g.id
-			group.ids <- levels(factor(data[,group.id]))
-		} else {
-			group.ids <- "1"
-			group.id <- "group.id"
-			data$group.id <- "1"
-		}
-	}
-	
-	# reduce data.frame to relevant variables
-	data <- data[, colnames(data) %in% c(actor.id, partner.id, var.id, group.id)]
-	
-	res <- list()
-	del.IDs <- c()	# the complete list of deleted participants
-	del.groups <- c()	# the complete list of deleted groups
-	
-	for (g in group.ids) {
-		
-		#print(paste("Processing group",g))
-		block <- data[data[,group.id]==g,]
-		# block <- block[!is.na(block[,var.id]),]
-		
-		# reduce ids to factor levels which are actually present
-		block[,actor.id] <- factor(as.character(block[,actor.id]), ordered=TRUE)
-		block[,partner.id] <- factor(as.character(block[,partner.id]), ordered=TRUE)
-		block[,group.id] <- factor(as.character(block[,group.id]), ordered=TRUE)
-						
-		# get names of participants which served both as actors and observers
-		if (reduce==TRUE) {
-			
-			# Schnittmenge aus actors und partners herausfinden
-			p <- intersect(levels(as.factor(block[,actor.id])), levels(as.factor(block[,partner.id])))
-			block.clean <- block[(block[,actor.id] %in% p) & (block[,partner.id] %in% p), which(colnames(block) != group.id)]
-			
-			# reduce levels again
-			block.clean[,actor.id] <- factor(as.character(block.clean[,actor.id]), ordered=TRUE)
-			block.clean[,partner.id] <- factor(as.character(block.clean[,partner.id]), ordered=TRUE)
-			
-			delComplete.IDs <- setdiff(union(levels(block[,actor.id]), levels(block[,partner.id])), p)
-			p2 <- p
-			
-		} else {
-			delComplete.IDs <- c()
-			p2 <- union(levels(as.factor(block[,actor.id])), levels(as.factor(block[,partner.id])))
-		}
-			
-			
-		if (length(p2) <= 1) {
-			if (verbose==TRUE){
-				warning(paste("Warning: The provided data of group",g,"are not in round robin format!"), call.=FALSE);
-			}
-			next();
-		}
-			
-		block.clean <- block[block[,actor.id] %in% p2 & block[,partner.id] %in% p2, which(colnames(block) != group.id)]
-
-
-		
-		# finally: construct the quadratic matrix
-		f1 <- as.formula(paste(actor.id,"~",partner.id))
-		
-		# check for double entries
-		double <- as.matrix(cast(block.clean, f1, value=var.id, fill=NA, fun.aggregate=length))
-		if (any(double > 1, na.rm=TRUE)) {
-			stop(paste0("There are double entries in group ", g, ". Calculations aborted, please remove these double entries."))
-		}
-		
-		box <- as.matrix(cast(block.clean, f1, value=var.id, fill=NA, fun.aggregate=mean))
-		
-		
-		if (reduce==FALSE) {
-			colmiss <- setdiff(levels(as.factor(block[,actor.id])), levels(as.factor(block[,partner.id])))
-			rowmiss <- setdiff(levels(as.factor(block[,partner.id])), levels(as.factor(block[,actor.id])))
-			if (length(colmiss)>0) box <- cbind(box, matrix(NA, nrow=nrow(box), ncol=length(colmiss), dimnames=list(NULL, colmiss)))
-			if (length(rowmiss)>0) box <- rbind(box, matrix(NA, ncol=ncol(box), nrow=length(rowmiss), dimnames=list(rowmiss, NULL)))
-			
-			box <- box[order(rownames(box)), order(colnames(box))]
-		}
-		
-		# extract self ratings if present
-		self <- diag(box)
-		diag(box) <- NA
-		
-		# Voyeure entfernen (nur actors oder nur partners) - iterativ
-		delVoyeur.IDs <- c()
-		if (reduce) {
-			repeat {
-				del.row <- apply(box, 1, function(x) return((length(x) - sum(is.na(x))) < minData))
-				del.col <- apply(box, 2, function(x) (length(x) - sum(is.na(x))) < minData)
-				dels <- del.row | del.col
-				if (sum(dels==TRUE) == 0) {break();}
-				delVoyeur.IDs <- c(delVoyeur.IDs, colnames(box)[dels])
-				box <- box[!dels,!dels]
-				self <- self[!dels]
-				if (is.null(box) | length(box) <= 1) break();
-			}
-		}
-		
-		if (length(box) <= 1) box <- NULL
-		
-		# Exclude the exclude.ids
-		ex2 <- intersect(rownames(box), exclude.ids)
-		self <- self[!rownames(box) %in% ex2]
-		if (!is.null(box)) box <- box[!rownames(box) %in% ex2,!colnames(box) %in% ex2]
-		
-		## Warnung ausgeben
-		del.IDs <- c(del.IDs, union(delComplete.IDs, union(delVoyeur.IDs, ex2)))
-		del2 <- union(delComplete.IDs, union(delVoyeur.IDs, ex2))
-		if (verbose==TRUE & length(del2) > 0) {
-			
-			if (is.null(extra[["bistyle"]])) {
-				warning(paste(var.id,": ",length(del2)," participant(s) have been excluded from group",g,"due to exceedingly missing data; id(s) =",paste(del2, collapse=", "),"."), call.=FALSE)
-			} else {
-				warning(paste(length(del2)," participant(s) have been excluded from group",g,"due to exceedingly missing data in at least one variable; id(s) =",paste(del2, collapse=", "),"."), call.=FALSE)
-			}
-			
-		}
-		
-		# | length(box)==1
-		if (is.null(box)) {
-			del.groups <- c(del.groups, g)
-			if (verbose==TRUE) {
-				if (is.null(extra[["bistyle"]])) {
-					warning(paste(var.id,": group",g,"has 3 or fewer subjects - the group is excluded from the analyses."), call.=FALSE)
-				} else {
-					warning(paste("Group",g,"has 3 or fewer subjects - the group is excluded from the analyses."), call.=FALSE)
-				}
-			}
-		} else {
-			if (!skip3 | nrow(box)>3) {
-				res[[g]] <- box
-				attr(res[[g]], "group.id") <- g
-				attr(res[[g]], "varname") <- var.id
-				if (any(!is.na(self))) {
-					attr(res[[g]], "self.ratings") <- self
-				}
-			}
-			if (skip3 & nrow(box)<=3) {
-				del.groups <- c(del.groups, g)
-				if (verbose==TRUE) {
-					if (is.null(extra[["bistyle"]])) {
-						warning(paste(var.id,": group",g,"has 3 or fewer subjects - the group is excluded from the analyses."), call.=FALSE)
-					} else {
-						warning(paste("Group",g,"has 3 or fewer subjects - the group is excluded from the analyses."), call.=FALSE)
-					}
-				}
-			}
-		}
-	
-	}
-	
-	# After processing all groups: attach excluded participant IDs
-	if (length(del.IDs)>0) {attr(res, "excluded.participants") <- sort(del.IDs)} else {attr(res, "excluded.participants") <- NULL}
-	if (length(del.groups)>0) {attr(res, "excluded.groups") <- sort(del.groups)} else {attr(res, "excluded.groups") <- NULL}
-	
-	
-	if (length(res)==0) {return()} 
-	else {return(res)}
-}
-
-
 
 clearLongData <- function(formule, data, minData=1) {
 	ll1 <- long2matrix(formule, data, reduce=TRUE, minData=minData)
@@ -320,20 +127,6 @@ clearLongData <- function(formule, data, minData=1) {
 	return(ll2)
 }
 
-
-
-# function takes data in matrix format and turns them into long format
-#' @export
-matrix2long <- function(M, new.ids=TRUE, var.id="value") {
-	M <- as.matrix(M)
-	if (new.ids) {
-		rownames(M) <- colnames(M) <- seq(1, nrow(M))
-	}
-	m1 <- melt(as.matrix(M))
-	colnames(m1) <- c("actor.id", "partner.id", var.id)
-	
-	return(m1)
-}
 
 
 
@@ -427,7 +220,6 @@ impute <- function(RRMatrix, na.rm="meansNA", stress.max = 0.01, maxIt=100) {
 
 # calculates Actor-, Partner- and Relationship-Effects from a single RR-Matrix
 RR.effects <- function(RRMatrix, name=NA, na.rm=FALSE, index="", varname="NA") {
-
 	if (!is.na(varname)) {name <- varname} else {
 		if (!is.null(attr(RRMatrix, "varname"))) name <- attr(RRMatrix, "varname")
 	}
@@ -495,7 +287,7 @@ RR.effects <- function(RRMatrix, name=NA, na.rm=FALSE, index="", varname="NA") {
 	
 	## Relationship effects
 	
-	effRel <- melt(c)
+	effRel <- reshape2::melt(c)
 	effRel <- effRel[apply(effRel, 1, function(x) {x[1] != x[2]}),]
 	colnames(effRel) <- c("actor.id", "partner.id", "relationship")
 	effRel[,1] <- factor(effRel[,1])
@@ -980,6 +772,10 @@ checkVar <- function(x, minVar=0) {
 
 # Wrapper function: depending on parameters, different results are calculated:
 #' @export
+#' @importFrom reshape2 melt
+#' @importFrom reshape2 acast
+#' @importFrom plyr ldply
+#' @importFrom plyr laply
 RR <- function(formula, data, na.rm=FALSE, minData = 1, verbose=TRUE, g.id=NULL, index="", exclude.ids="", varname=NA, minVar=localOptions$minVar, ...) {
 
 	extra <- list(...)
@@ -1504,11 +1300,11 @@ RR.multi.uni <- function(formule, data, na.rm=FALSE, verbose=TRUE, index="", min
 		
 		RR0$group.id <- g.id
 
-		if (RR0$latent==FALSE) {
-			RR0$effects.gm$group.id <- g.id
-		} else {
-			eff.gm <- list(relationship=NA)
-		}
+		# if (RR0$latent==FALSE) {
+# 			RR0$effects.gm$group.id <- g.id
+# 		} else {
+# 			eff.gm <- list(relationship=NA)
+# 		}
 		
 		g.uni[[g]] <- RR0
 		
@@ -1651,175 +1447,6 @@ RR.multi.uni <- function(formule, data, na.rm=FALSE, verbose=TRUE, index="", min
 
 
 
-# mode = c("scatter", "bar")
-
-#' @S3method plot RRmulti
-plot.RRmulti <- function(x, ..., measure=NA, geom="scatter", conf.level=0.95, connect=FALSE) {
-	RRm <- x
-	
-	# NULL out gpglot2 variables so that R CMD check is satisfied ...
-	# http://stackoverflow.com/questions/9439256/how-can-i-handle-r-cmd-check-no-visible-binding-for-global-variable-notes-when
-	type <- jit.x <- type2 <- group.size <- estimate <- tcrit <- se <- group.id <- standardized <- NULL
-	
-	if (is.na(measure)) {
-		measure <- localOptions$style
-	} else {
-		measure <- match.arg(measure, c("behavior", "perception", "metaperception"))
-	}
-	
-	library(ggplot2)
-	
-	mode <- ifelse(length(RRm$univariate)==2,"bi","uni")
-	
-	if (mode=="uni") {
-		df0 <- RRm$varComp.group
-		grouplevel <- RRm$varComp
-	} else {
-		df0 <- rbind(RRm$univariate[[1]]$varComp.group, RRm$univariate[[2]]$varComp.group)
-		grouplevel <- rbind(cbind(RRm$univariate[[1]]$varComp, variable=1), cbind(RRm$univariate[[2]]$varComp, variable=2))
-	}
-	
-	
-	if (measure=="behavior") {lab <- gsub(" ", "\n", unilabels_b, fixed=TRUE)}
-	if (measure=="perception") {lab <- gsub(" ", "\n", unilabels_p, fixed=TRUE)}
-	
-	# set right order and factor labels
-	df <- df0
-	df$type <- factor(df$type, levels=unilabels_b, labels=lab)
-	
-	
-	
-	if (geom=="scatter") {
-		#define deterministic jittering
-		df$jit.x <- NA
-		for (i in names(table(df$group.id))) df$jit.x[df$group.id==i] <- rnorm(1,0,0.1)
-		
-		grouplevel$type2 <- factor(grouplevel$type, levels=unilabels_b, labels=lab)
-		grouplevel$tcrit <- abs(qt((1-conf.level)/2,length(RRm$groups)-1))
-
-		
-		p1 <- ggplot(df, aes_string(y="estimate"), na.rm=TRUE)
-
-		p1 <- p1 + geom_point(aes(x=(as.numeric(type)+jit.x), size=group.size), alpha=0.6, color="grey60", na.rm=TRUE) + scale_size("Group size")
-	
-		p1 <- p1 + geom_point(aes(x=(as.numeric(type)+jit.x)), alpha=0.8, color="black", size=0.7, na.rm=TRUE)
-		
-		p1 <- p1 + scale_x_discrete()
-		
-		p1 <- p1 + geom_pointrange(data=grouplevel, aes(x=type2, y=estimate, ymin=estimate-tcrit*se, ymax=estimate+tcrit*se), color="darkgreen", size=1.1, na.rm=TRUE)
-		
-		
-	
-		# lines connecting the points (may be very cluttered)
-		if (connect==TRUE) {
-			p1 <- p1 +geom_line(data=df[as.numeric(df$type) <= 3,], aes(x=(as.numeric(type)+jit.x), y=estimate, group=group.id), color="grey40", alpha=0.7, na.rm=TRUE)
-		}
-
-	
-		p1 <- p1 + theme(axis.text.x = element_text(angle = 0, vjust=1)) + xlab("") + ggtitle(paste("Multiple round robin groups:\nAbsolute (co-)variance estimates\nand",round(conf.level,2)*100,"%-CI (weighted for group size)"))
-		
-		if (mode=="bi") {
-			p1 <- p1 + facet_wrap(~variable)
-		}
-		
-		return(p1)
-	}	
-	
-	
-	
-	if (geom=="bar") {
-
-			
-		# df3 <- df
-		# x <- df3[df3$group.id==1,]
-		# ddply(df3, .(group.id), function(x) {return(x$standardized[x$type=="actor\nvariance"])})
-		# 
-		# df3$group2 <- factor(
-		# 	df3$group.id, levels=df3$group.id[df3$type=="actor\nvariance"][order(df3$standardized[df3$type=="actor\nvariance"], na.last=FALSE)],
-		# 	ordered=TRUE)
-		#df3$group2 <- factor(df3$group.id, levels=df3$group.id[order(df3$standardized[df3$type=="actor\nvariance"])])
-		
-		df3 <- na.omit(df)
-		
-		p2 <- ggplot(df3[as.numeric(df3$type)<=3,], aes(x=group.id, y=standardized, fill=as.character(gsub("\n", " ", type, fixed=TRUE)))) + geom_bar(aes(width=group.size), na.rm=TRUE)
-		p2 <- p2 + scale_fill_discrete("Variance Component") + ylab("Standardized variances")
-		
-		if (mode=="bi") {p2 <- p2 + facet_wrap(~variable)}
-		
-		return(p2)
-	}
-	
-}
-
-#' @S3method plot RRbi
-plot.RRbi <- function(x, ...) {
-	plot.RRuni(x, ...)
-}
-
-#' @S3method plot RRuni
-plot.RRuni <- function(x, ..., measure=NA, geom="bar") {
-	
-	RRu <- x
-	standardized <- type2 <- NULL
-	if (is.na(measure)) {
-		measure <- localOptions$style
-	} else {
-		measure <- match.arg(measure, c("behavior", "perception", "metaperception"))
-	}
-	
-	library(ggplot2)
-	
-	if (measure=="behavior") {lab <- unilabels_b}
-	if (measure=="perception") {lab <- unilabels_p}
-	
-	
-	mode <- ifelse(length(RRu$univariate)==2,"bi","uni")
-	
-	if (mode=="uni") {
-		df <- RRu$varComp
-	} else {
-		df <- rbind(cbind(RRu$univariate[[1]]$varComp, variable=1), cbind(RRu$univariate[[2]]$varComp, variable=2))
-	}
-	
-	df$type2 <- lab
-	df$standardized[is.na(df$standardized)] <- 0
-	
-	p1 <- ggplot(df[df$type2 %in% lab[1:3],], aes(x=factor(1), y=standardized, fill=as.character(type2))) + geom_bar(stat="identity", na.rm=TRUE) + scale_fill_discrete("Variance Component") + xlab("") + ylab("Standardized variance component")
-	
-	if (geom=="pie") p1 <- p1 + coord_polar(theta="y")
-	
-	if (mode=="bi") {p1 <- p1 + facet_wrap(~variable)}
-	
-	return(p1)
-}
-
-#' @export
-plot_missings <- function(formule, data, show.ids=TRUE) {
-
-	library(ggplot2)
-	
-	# parse formula
-	if (is.null(data)) stop("If a formula is specified, an explicit data object has to be provided!");
-	
-	f0 <- all.vars(formule)
-	grs <- long2matrix(formule, data, reduce=FALSE, skip3=FALSE)
-	
-	m1 <- melt(grs)
-	m1$value2 <- factor(ifelse(is.na(m1$value), 1, 0))
-	colnames(m1)[1:2] <- c(f0[2], f0[3])
-	m1[,f0[2]] <- factor(m1[,f0[2]], ordered=TRUE)
-	m1[,f0[3]] <- factor(m1[,f0[3]])
-	
-	p2 <- ggplot(m1, aes_string(x=f0[3], y=f0[2])) + geom_point(aes_string(color="value2"), na.rm=TRUE) + facet_wrap(~L1, scales="free")
-	p2 <- p2 + scale_colour_identity("Missing?", breaks=c(0,1), labels=c("no", "yes"), legend=TRUE) 
-	
-	p2 <- p2 + theme(axis.text.x = element_text(angle = 90, hjust=1, size=7), axis.text.y = element_text(hjust=1, size=7), aspect.ratio=1) + ggtitle("Missing values")
-	
-	if (show.ids==FALSE) {
-		p2 <- p2 + theme(axis.text.x = element_text(size=0), axis.text.y = element_text(size=0))
-	}
-	return(p2)
-}
 
 
 RR.multi <- function(formule, data, na.rm=FALSE, verbose=TRUE, index="", minData=1, exclude.ids="", varname=NA, ...) {
@@ -1897,44 +1524,22 @@ RR.multi <- function(formule, data, na.rm=FALSE, verbose=TRUE, index="", minData
 
 
 
-#' @export
-getEffects <- function(formule, data, varlist, by=NA, na.rm=TRUE, minVar=localOptions$minVar, ...) {
 
-	# run a RR analysis for each variable and store results in a list
-	res_list <- list()
-	for (v in 1:length(varlist)) {
-		print(paste("Calculate:",varlist[v]))
-		f1 <- formula(paste(varlist[v], paste(as.character(formule), collapse="")))
-		RR1 <- RR(f1, data=data, na.rm=na.rm, verbose=FALSE, minVar=minVar, ...)
-		
-		eff <- RR1$effects
-		res_list <- c(res_list, list(eff))
-	}
-
-
-	# now combine all effects in a single data frame; merge by id
-	
-	if (is.na(by)) {
-		if (length(RR1$groups) > 1) {by <- c("id", "group.id")} 
-		else {by <- "id"}
-	}
-	
-	res <- merge_recurse(res_list, by=by)
-}
-
-
-
-#' @S3method print RRmulti
+# Workaround: When @export does not recognize that this is a S3-method, you need the extra @method statement
+#' @method print RRmulti
+#' @export 
 print.RRmulti <- function(x, ...) {
 	print.RR(x, ...)
 }
 
-#' @S3method print RRuni
+#' @method print RRuni
+#' @export
 print.RRuni <- function(x, ...) {
 	print.RR(x, ...)
 }
 
-#' @S3method print RRbi
+#' @method print RRbi
+#' @export
 print.RRbi <- function(x, ...) {
 	print.RR(x, ...)
 }
@@ -2076,20 +1681,5 @@ print.RR <- function(x, ..., measure1=NA, measure2=NA, digits=3, measure=NULL) {
 	}
 	
 	
-}
-
-
-
-
-
-
-#------------------------------------------------------------
-# ----  Helper functions --------------------------------------
-#------------------------------------------------------------
-
-long2wide <- function(eff) {
-	eff$swip <- rep(c(1:2), length.out=nrow(eff))
-	melt(eff, measure.vars="relationship", id.vars=c(1,4))
-	cast(eff, group.id+dyad~swip, value="relationship")
 }
 
