@@ -1,9 +1,9 @@
-d33688c569417ff823bed9b5db002a3e *DESCRIPTION
-50a7dacc6aa56b8a333e7d119e980286 *NAMESPACE
-7148259fc0e56acd3ec38268c348aff4 *NEWS
-b288e10ba2d739ba2871cb1c4c371cd7 *R/RR.r
+643dd7a471be6503f1cbb80d9073ff0d *DESCRIPTION
+c3cd8c4ad886b6a6d759fa1f36ee0613 *NAMESPACE
+55ffdafa2f326d32c5e9651af0b894cb *NEWS
+e22b6dfa5943993fcf1cd090bb369085 *R/RR.r
 9127f0ea14c4a0e3d0c75cfd04845113 *R/getEffects.R
-39f30c4f512c78b591fb06fca0761dfe *R/long2matrix.R
+b0cc630374f30686dbf9402e9a8dfd4b *R/long2matrix.R
 e7c9c67bee37a7848316b91dbbaa4955 *R/parCor.r
 26ac37e76a4d47350e90850adc8799d8 *R/plots.R
 db2230063ae68c76a715048cd5c2ec62 *R/selfCor.r
@@ -15,7 +15,7 @@ d41d0543ad3a9e4980acca55528d0bde *data/metaliking_b.tab
 97420c7dec051a4750e811347e6ed946 *data/multiGroup.tab
 6da62e2d911cf334b0abea023ba88b0b *data/multiLikingLong.tab
 aa0b29b0dbbea76fc786c7fee497fa7d *data/multiNarc.tab
-96c9cb6f936403bd41d35f98338dd2a9 *inst/CITATION
+64d0fe05a539bbcc931a0bd27d9ae6d9 *inst/CITATION
 586b8bcc8ab2582382c15f75680940de *inst/doc/TripleR.pdf
 7ffba837e496260e47c06d1741d7d4b4 *inst/doc/index.html
 d514c1a3f5bfa936ae4cb5740220900d *man/RR.Rd
