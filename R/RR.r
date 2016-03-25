@@ -1,45 +1,5 @@
 
 
-#------------------------------------
-#-- Skinning variables
-#------------------------------------
-
-
-localOptions <- new.env(parent=globalenv())
-localOptions$suffixes <- c(".a", ".p", ".s")
-localOptions$style <- "behavior"
-localOptions$minVar <- 0
-
-role <- list()
-role$behavior <- c("Actor", "Partner", "Relationship")
-role$perception <- c("Perceiver", "Target", "Relationship")
-role$metaperception <- c("Perceiver", "Target", "Relationship")
-
-# Labels actor-partner
-unilabels_b <- c("actor variance", "partner variance", "relationship variance", "error variance", "actor-partner covariance", "relationship covariance")
-# Labels target-perceiver
-unilabels_p <- c("perceiver variance", "target variance", "relationship variance", "error variance", "perceiver-target covariance", "relationship covariance")
-
-unilabels2 <- c("estimate", "standardized", "se", "t.value")
-
-# labels for metaperception
-unilabels_b_meta1 <- c("perceiver variance otherperception", "target variance otherperception",  "relationship variance otherperception", "error variance otherperception", "generalized reciprocity otherperception", "dyadic reciprocity otherperception")
-unilabels_b_meta2 <- c("perceiver variance metaperception", "target variance metaperception", "relationship variance metaperception", "error variance metaperception", "generalized reciprocity metaperception", "dyadic reciprocity metaperception")
-
-# Labels for bivariate analyses
-bilabels_bb <- c("actor-actor covariance","partner-partner covariance",
-"actor-partner covariance","partner-actor covariance","intrapersonal relationship covariance", "interpersonal relationship covariance")
-bilabels_pp <- c("perceiver-perceiver covariance","target-target covariance",
-"perceiver-target covariance","target-perceiver covariance","intrapersonal relationship covariance", "interpersonal relationship covariance")
-bilabels_bp <- c("actor-perceiver covariance","partner-target covariance",
-"actor-target covariance","partner-perceiver covariance","intrapersonal relationship covariance", "interpersonal relationship covariance")
-bilabels_pb <- c("perceiver-actor covariance","target-partner covariance",
-"perceiver-partner covariance","target-actor covariance","intrapersonal relationship covariance", "interpersonal relationship covariance")
-
-
-bilabels_meta <- c("Perceiver assumed reciprocity","Generalized assumed reciprocity",
-"Perceiver meta-accuracy", "Generalized meta-accuracy", "Dyadic assumed reciprocity", "Dyadic meta-accuracy")
-
 
 #' @export
 RR.summary <- function(formule, data) {
@@ -71,62 +31,6 @@ RR.summary <- function(formule, data) {
 	cat(paste("Mean:",round(mean(gs), 2))); cat("\n\n")
 }
 
-# set options for printing results etc.
-# style = c("behavior", "perception")
-#' @export
-RR.style <- function(style="behavior", suffixes=NA, minVar=NA) {
-	localOptions$style <- style <- match.arg(style, c("behavior", "perception"))
-	
-	if (is.na(suffixes)) {
-		if (style=="behavior") {
-			localOptions$suffixes <- c(".a", ".p", ".s")
-		} else 
-		if (style=="perception") {
-			localOptions$suffixes <- c(".p", ".t", ".s")
-		}
-	} else {
-		localOptions$suffixes <- suffixes
-	}
-	
-	if (is.na(minVar)) {
-		localOptions$minVar <- 0
-	} else {
-		localOptions$minVar <- minVar
-	}
-}
-
-
-# corrects values < -1 to -1 and values > 1 to 1
-clamp <- function(...) {
-	x <- c(...)
-	x[x < -1] <- -1
-	x[x >  1] <-  1
-	return(x)
-}
-
-
-
-clearLongData <- function(formule, data, minData=1) {
-	ll1 <- long2matrix(formule, data, reduce=TRUE, minData=minData)
-	
-	lhs <- strsplit(gsub(" ","",as.character(formule)[2], fixed=TRUE), "+", fixed=TRUE)[[1]]
-	rhs <- strsplit(gsub(" ","",as.character(formule)[3], fixed=TRUE),"\\*|\\|", perl=TRUE)[[1]]
-	
-	var.id <- lhs
-	actor.id <- rhs[1]
-	partner.id <- rhs[2]
-	if (length(rhs)>=3) {group.id <- rhs[3]} else {group.id="group.id"}
-	
-	
-	
-	ll2 <- ldply(ll1, function(x) {
-		matrix2long(x, new.ids=FALSE, var.id=var.id)
-	})
-	colnames(ll2)[1:3] <- c(group.id, actor.id, partner.id)
-
-	return(ll2)
-}
-
 
 
 
@@ -146,73 +50,6 @@ quickeffects <- function(RRMatrix) {
    c <- RRMatrix - am - bm - mpp		 # relationship effect
 
 	return(list(a=a,b=b,c=c,m=mpp))
-}
-
-impute <- function(RRMatrix, na.rm="meansNA", stress.max = 0.01, maxIt=100) {
-
-	# in Matrix umwandeln, sonst geht's nicht ...
-	RRMatrix2 <- as.matrix(RRMatrix)
-	rownames(RRMatrix2) <- rownames(RRMatrix)
-	colnames(RRMatrix2) <- colnames(RRMatrix)
-	RRMatrix <- RRMatrix2
-	
-	NAs <- is.na(RRMatrix)		# Matrix, die die Position der NAs ausserhalb der Diagonale speichert
-	
-	save.diag <- diag(RRMatrix)	# self ratings aus der Diagonale abspeichern
-	diag(RRMatrix) <- NA
-
-	eff0 <- eff <- quickeffects(RRMatrix)
-	stress <- 1
-	it <- 0
-
-	# save evolution of parameters
-	as <- matrix(eff$a, nrow=1, ncol=ncol(RRMatrix))
-	bs <- matrix(eff$b, nrow=1, ncol=ncol(RRMatrix))
-	ms <- c()
-	
-	while (stress > stress.max) {
-	
-		rM <- rowMeans(RRMatrix, na.rm=TRUE)
-		cM <- colMeans(RRMatrix, na.rm=TRUE)
-		rM_mean <- mean(rM)
-		cM_mean <- mean(cM)
-		grandmean <- mean(RRMatrix, na.rm=TRUE)
-		
-		for (i in 1:ncol(RRMatrix)) {
-			for (j in 1:nrow(RRMatrix)) {
-				if (NAs[j,i]==TRUE) {
-					
-					# Ersetzung durch mittleres Zeilen/ Spaltenmittel
-					if (grepl("mean", na.rm)) {
-						RRMatrix[j,i] <- (rM[j] + cM[i])/2
-					}
-				
-				}
-			}
-		}
-
-		if (grepl("1", na.rm)) break; # bei means1, chi1: beim ersten Durchgang gleich rausspringen
-
-		eff <- quickeffects(RRMatrix)
-
-		stress <- max(max(abs(eff$a - eff0$a)), max(abs(eff$b - eff0$b)))
-		eff0 <- eff
-		it <- it + 1
-		
-		if (it > maxIt) {
-			warning("Maximum iterations exceeded; fall back to single imputation.", call.=FALSE)
-			return(impute(RRMatrix2, paste(na.rm,"1",sep="")))
-		}
-		
-		as <- rbind(as, eff$a)
-		bs <- rbind(bs, eff$b)
-		ms <- c(ms, eff$m)
-	}	
-	
-	diag(RRMatrix) <- save.diag
-	if (!grepl("NA", na.rm)) {NAs[] <- FALSE}
-	
-	return(list(RRMatrix=RRMatrix, NAs=NAs, iterations=it, as=as, bs=bs, ms=ms))
 }
 
 
@@ -359,7 +196,7 @@ RR.univariate <- function(RRMatrix, na.rm=FALSE, verbose=TRUE, corr.fac="1", ind
 		if (n>=10 & (n.NA/(n^2-n)) > .20) {wa <- TRUE}
 		
 		if (wa==TRUE) {
-			warning(paste(attr(RRMatrix, "varname"),": The number of missing values (n.NA=",n.NA,"; ",round((n.NA/(n^2-n))*100, 1),"%) in group ",attr(RRMatrix, "group.id")," exceeds the recommended maximum number of missings according to Schoenbrodt, Back, & Schmukle (in prep.). Estimates might be biased.", sep=""), call.=FALSE)
+			warning(paste(attr(RRMatrix, "varname"),": The number of missing values (n.NA=",n.NA,"; ",round((n.NA/(n^2-n))*100, 1),"%) in group ",attr(RRMatrix, "group.id")," exceeds the recommended maximum number of missings according to Schoenbrodt, Back, & Schmukle (2011). Estimates might be biased.", sep=""), call.=FALSE)
 		}
 	}
 	
@@ -404,36 +241,20 @@ RR.univariate <- function(RRMatrix, na.rm=FALSE, verbose=TRUE, corr.fac="1", ind
 	rccs <- sccs/scc2 #relationship correlation
 	
 	
-	w = (n^2 - 3*n + 6) * (n^2 - 3*n + 4)
-
-	sesaa <- sqrt((2*saa^2) / (n+1) + (2*(n^6 - 7*n^5 + 28*n^4 - 66*n^3 + 102*n^2 - 84*n + 32)* scc^2)/ (w*(n+1)*n^2*(n-2)^2)
-	        + (2*(n^3-n^2-2*n+16)*(n^2-2*n+2)*sccs^2) / (w*(n+1)*n^2*(n-2)^2)
-	        + (4*saa*((n-1) * scc + sccs)) / ((n+1)*n*(n-2))
-	        + (4*(n^5-5*n^4+20*n^3-42*n^2+60*n-32)*scc*sccs) / (w*(n+1)*n^2*(n-2)^2))
-
-	sesbb <- sqrt((2*sbb^2) / (n+1) + (2*(n^6 - 7*n^5 + 28*n^4 - 66*n^3 + 102*n^2 - 84*n + 32)* scc^2)/ (w*(n+1)*n^2*(n-2)^2)
-	        + (2*(n^3-n^2-2*n+16)*(n^2-2*n+2)*sccs^2) / (w*(n+1)*n^2*(n-2)^2)
-	        + (4*sbb*((n-1) * scc + sccs)) / ((n+1)*n*(n-2))
-	        + (4*(n^5-5*n^4+20*n^3-42*n^2+60*n-32)*scc*sccs) / (w*(n+1)*n^2*(n-2)^2))
-
-	sescc <- sqrt((2*(n^2-3*n+5)* ((scc^2 + sccs^2))) / w + (4*scc*sccs)/ w)
-
-	sesab <- sqrt(((n-3)*sab^2) / ((n+1)*(n-2)) + ((n^6 - 5*n^5 + 19*n^4 - 45*n^3 + 90*n^2 - 96*n + 64)* scc^2)/ (w*(n+1)*n^2*(n-2)^2)
-	        + ((n^6 - 7*n^5 + 31*n^4 - 83*n^3 + 150*n^2 - 144*n + 64)* sccs^2)/ (w*(n+1)*n^2*(n-2)^2)
-	        + ((n-1)*saa*sbb)/((n+1)*(n-2))
-	        + ((n-1)*(saa+sbb)*((n-1)*scc+sccs))/((n+1)*n*(n-2)^2)
-	        + (2*(n-3)*sab*(scc+(n-1)*sccs))/((n+1)*n*(n-2)^2)
-	        + (4*(n^5-5*n^4+20*n^3-42*n^2+60*n-32)*scc*sccs) / (w*(n+1)*n^2*(n-2)^2))
-
-	sesccs <- sqrt((2*(n^2-3*n+5)*((scc^2+sccs^2)))/w + (4*scc*sccs)/w)
-
-
+	# ---------------------------------------------------------------------
+	# Compute SE and t-value for a single group using the formula of Lashley & Bond
+	SEVAR <- compute_univariate_LB_SE2(saa, sbb, scc, sab, sccs, n) # squared standard errors of variance estimates
+	SE <- sqrt(SEVAR)	# standard errors of variance estimates
+	
 	# error variance is NA if only one group is present
 	estimate <- c(saa,sbb,scc,NA,sab,sccs)
 	standardized <- clamp(raa,rbb,rcc,NA,rab,rccs)
 	
-	se <- c(ifelse(estimate[1:3]>=0,c(sesaa,sesbb,sescc),NaN),NA,sesab,sesccs)
-	t.value <- estimate/se
+	# set SEs of negative variances to NaN
+	# TODO: If var==0 --> se = 0, too?
+	SE[estimate[1:3]<=0] <- NaN
+	
+	t.value <- estimate/SE
 	p.value <- 1-pt(abs(t.value), n-1)
 	# Kovarianzen werden zweiseitig getestet:
 	p.value[4:5] <- p.value[4:5]*2
@@ -449,15 +270,16 @@ RR.univariate <- function(RRMatrix, na.rm=FALSE, verbose=TRUE, corr.fac="1", ind
 	attr(eff$eff[,3], "reliability") <- rel.b
 	
 	# join everything in one dataframe
-	univariate <- data.frame(type=unilabels_b, estimate, standardized, se, t.value, p.value)
+	univariate <- data.frame(type=unilabels_b, estimate, standardized, se=SE, SEVAR=SEVAR, t.value, p.value)
+	#univariate <- data.frame(type=unilabels_b, estimate, standardized, se=SE, t.value, p.value)
 	
 	# if one variance component is below zero: erase covariances
 	# erase indices for negative variances
-	univariate[1:3,][univariate$estimate[1:3]<0,3:6] <- NaN
-	if (saa <= 0 | sbb <= 0) {univariate[5,3:6] <- NaN}
-	if (scc <= 0) {univariate[6,3:6] <- NaN}
+	univariate[1:3,][univariate$estimate[1:3]<0, c("standardized", "se", "t.value", "p.value")] <- NaN
+	if (saa <= 0 | sbb <= 0) {univariate[5, c("standardized", "se", "t.value", "p.value")] <- NaN}
+	if (scc <= 0) {univariate[6, c("standardized", "se", "t.value", "p.value")] <- NaN}
 
-	res <- list(effects = eff$eff, effectsRel = eff$effRel, effects.gm = eff$eff.gm, varComp = univariate, relMat.av=e, relMat.diff=d, group.size=n, latent=FALSE, anal.type="Univariate analysis of one round robin variable", n.NA = n.NA)
+	res <- list(effects = eff$eff, effectsRel = eff$effRel, effects.gm = eff$eff.gm, varComp = univariate, relMat.av=e, relMat.diff=d, group.size=n, latent=FALSE, anal.type="Univariate analysis of one round robin variable", n.NA = n.NA, SEVAR=SEVAR)
 	class(res) <- "RRuni"
 	attr(res, "group.size") <- n
 	attr(res, "varname") <- attr(RRMatrix, "varname")
@@ -478,7 +300,7 @@ RR.univariate <- function(RRMatrix, na.rm=FALSE, verbose=TRUE, corr.fac="1", ind
 # latent = FALSE: both matrices are treated as independent variables
 # noCorrection = TRUE: even if univariate estimates are negative, bivariate covariances are NOT set to NA (this is necessary, when the manifest bivariat results are transferred into the bivariate latent analysis, see TAG1)
 
-RR.bivariate <- function(RRMatrix1, RRMatrix2, analysis="manifest", na.rm=FALSE, verbose=TRUE, noCorrection=FALSE, index="", varname=NA) {
+RR.bivariate <- function(RRMatrix1, RRMatrix2, analysis="manifest", na.rm=FALSE, verbose=TRUE, noCorrection=FALSE, index="", varname=NA, se="LashleyBond") {
 	
 	if (!(analysis %in% c("latent", "manifest"))) stop("Parameter 'analysis' must either be 'latent' or 'manifest'. Calculations aborted.")
 	
@@ -533,7 +355,7 @@ RR.bivariate <- function(RRMatrix1, RRMatrix2, analysis="manifest", na.rm=FALSE,
 	
 	
 	# standardized covariances (=correlations), bivariate case
-	#standardized <- clamp(raf,rbg,rag,rbf,rch,rchs)
+	# standardized <- clamp(raf,rbg,rag,rbf,rch,rchs)
 	w <- getOption("warn")
 	options(warn=-1)
 		raf <-  saf/(sqrt(varComp.1[1])*sqrt(varComp.2[1])) # bivariate correlations
@@ -550,12 +372,11 @@ RR.bivariate <- function(RRMatrix1, RRMatrix2, analysis="manifest", na.rm=FALSE,
 		stabtarvar1 <- sbg
 		stabrelvar1 <- sch
 		
-    	stabapcov1 <- (sag + sbf)/2		
+    	stabapcov1 <- (sag + sbf)/2	# latent actor-partner-covariance
     	stabdycov1 <- schs
 		unstabper1 <- (varComp.1[1] + varComp.2[1])/2 - saf
 		unstabtar1 <- (varComp.1[2] + varComp.2[2])/2 - sbg
-		unstabrel1 <- (varComp.1[3] + varComp.2[3]) / 2 - sch
-		
+		unstabrel1 <- (varComp.1[3] + varComp.2[3]) / 2 - sch		
 		
 		saf2 <- max(saf, 0)
 		sbg2 <- max(sbg, 0)
@@ -572,70 +393,28 @@ RR.bivariate <- function(RRMatrix1, RRMatrix2, analysis="manifest", na.rm=FALSE,
 		stabdycor1 <- ifelse(sch2>0, stabdycov1/sch2, NaN)
 		stabapcor1 <- ifelse(saf>0 & sbg>0, stabapcov1 / sqrt(saf*sbg), NaN)
 	}
+
+	# Compute standard errors (se) und t-values (t) of bivariate srm-parameters
+	biSEVAR <- compute_bivariate_LB_SE2(varComp.1, varComp.2, saf, sag, sbg, sbf, sch, schs, n)
 	
+	biSE <- sqrt(biSEVAR)
+	names(biSE) <- c("sesaf", "sesbg", "sesag", "sesbf", "sesch", "seschs")
 
-	# Standard errors (se) und t-values (t) of bivariate srm-parameters
-
-	coef1 <- n^11-14*n^10+89*n^9-342*n^8+872*n^7-1505*n^6+1698*n^5-1063*n^4+116*n^3+292*n^2-224*n+64
-	coef2 <- n^10-12*n^9+66*n^8-227*n^7+534*n^6-857*n^5+883*n^4-416*n^3-148*n^2+224*n-64
-	coef3 <- n^10-11*n^9+48*n^8-93*n^7-2*n^6+388*n^5-763*n^4+572*n^3+4*n^2-224*n+64
-	coef4 <- n^11-16*n^10+117*n^9-520*n^8+1540*n^7-3083*n^6+3970*n^5-2689*n^4-4*n^3+1212*n^2-544*n-64
-	coef5 <- n^10-11*n^9+42*n^8-33*n^7-258*n^6+976*n^5-1453*n^4+788*n^3+348*n^2-544*n-64
-	coef6 <- 2*(n^10-14*n^9+92*n^8-383*n^7+1074*n^6-1963*n^5+2101*n^4-752*n^3-780*n^2+544*n+64)
-	coef7 <- (n-3)*n*(n^6-9*n^5+35*n^4-75*n^3+76*n^2-12*n-48)
-
-	suppressWarnings(
-		sesaf <- sqrt(((n-1)*varComp.1[1]*varComp.2[1]+(n-3)*saf^2)/((n-2)*(n+1))
-		         + ((n-1)^2*(varComp.1[1]*varComp.2[3]+varComp.1[3]*varComp.2[1])+(n-1)*(varComp.1[1]*varComp.2[5]+varComp.1[5]*varComp.2[1])+2*(n-3)*saf*((n-1)*sch+schs))/((n-2)^2*n*(n+1))
-		         + (coef1*varComp.1[3]*varComp.2[3]+coef2*(varComp.1[3]*varComp.2[5]+varComp.1[5]*varComp.2[3])+coef3*varComp.1[5]*varComp.2[5]+coef4*sch^2+coef5*schs^2+coef6*sch*schs)/((n-2)^3*n^2*(n+1)*coef7))
-		)
-
-	suppressWarnings(
-		sesbg <- sqrt(((n-1)*varComp.1[2]*varComp.2[2]+(n-3)*sbg^2)/((n-2)*(n+1))
-		         + ((n-1)^2*(varComp.1[2]*varComp.2[3]+varComp.1[3]*varComp.2[2])+(n-1)*(varComp.1[2]*varComp.2[5]+varComp.1[5]*varComp.2[2])+2*(n-3)*sbg*((n-1)*sch+schs))/((n-2)^2*n*(n+1))
-		         + (coef1*varComp.1[3]*varComp.2[3]+coef2*(varComp.1[3]*varComp.2[5]+varComp.1[5]*varComp.2[3])+coef3*varComp.1[5]*varComp.2[5]+coef4*sch^2+coef5*schs^2+coef6*sch*schs)/((n-2)^3*n^2*(n+1)*coef7))
-		)
-		
-		
-	suppressWarnings(
-	sesch <- sqrt(((n^6-9*n^5+32*n^4-57*n^3+43*n^2+6*n-8)*(varComp.1[3]*varComp.2[3]+varComp.1[5]*varComp.2[5])+2*(n^4-6*n^3+3*n^2+18*n-8)*sch*schs)/coef7
-	         + ((n^4-6*n^3+11*n^2-6*n+8)*(varComp.1[3]*varComp.2[5]+varComp.1[5]*varComp.2[3])+(n^6-9*n^5+28*n^4-33*n^3-9*n^2+54*n+8)*(sch^2 + schs^2))/coef7)
-			)
-			
-	suppressWarnings(
-	sesag <- sqrt(((n-1)*varComp.1[1]*varComp.2[2]+(n-3)*sag^2)/((n-2)*(n+1))
-	         + ((n-1)^2*(varComp.1[1]*varComp.2[3]+varComp.1[3]*varComp.2[2])+(n-1)*(varComp.1[1]*varComp.2[5]+varComp.1[5]*varComp.2[2])+2*(n-3)*sag*((n-1)*schs+sch))/((n-2)^2*n*(n+1))
-	         + (coef1*varComp.1[3]*varComp.2[3]+coef2*(varComp.1[3]*varComp.2[5]+varComp.1[5]*varComp.2[3])+coef3*varComp.1[5]*varComp.2[5]+coef4*schs^2+coef5*sch^2+coef6*sch*schs)/((n-2)^3*n^2*(n+1)*coef7))
-	)
-
-	suppressWarnings(
-	sesbf <- sqrt(((n-1)*varComp.1[2]*varComp.2[1]+(n-3)*sbf^2)/((n-2)*(n+1))
-	         + ((n-1)^2*(varComp.1[2]*varComp.2[3]+varComp.1[3]*varComp.2[1])+(n-1)*(varComp.1[2]*varComp.2[5]+varComp.1[5]*varComp.2[1])+2*(n-3)*sbf*((n-1)*schs+sch))/((n-2)^2*n*(n+1))
-	         + (coef1*varComp.1[3]*varComp.2[3]+coef2*(varComp.1[3]*varComp.2[5]+varComp.1[5]*varComp.2[3])+coef3*varComp.1[5]*varComp.2[5]+coef4*schs^2+coef5*sch^2+coef6*sch*schs)/((n-2)^3*n^2*(n+1)*coef7))
-	)
-
-
-	suppressWarnings(
-	seschs <- sqrt(((n^6-9*n^5+32*n^4-57*n^3+43*n^2+6*n-8)*(varComp.1[3]*varComp.2[3]+varComp.1[5]*varComp.2[5])+2*(n^4-6*n^3+3*n^2+18*n-8)*sch*schs)/coef7
-	         + ((n^4-6*n^3+11*n^2-6*n+8)*(varComp.1[3]*varComp.2[5]+varComp.1[5]*varComp.2[3])+(n^6-9*n^5+28*n^4-33*n^3-9*n^2+54*n+8)*(sch^2 + schs^2))/coef7)
-	)
-
-
-	taf <- saf/sesaf
-	tbg <- sbg/sesbg
-	tch <- sch/sesch
-	tag <- sag/sesag
-	tbf <- sbf/sesbf
-	tchs <- schs/seschs
+	taf <- saf/biSE["sesaf"]
+	tbg <- sbg/biSE["sesbg"]
+	tch <- sch/biSE["sesch"]
+	tag <- sag/biSE["sesag"]
+	tbf <- sbf/biSE["sesbf"]
+	tchs <- schs/biSE["seschs"]
 	
 	if (analysis=="latent") {
-		sestabpervar1 <- sesaf
-		sestabtarvar1 <- sesbg
-		sestabrelvar1 <- sesch
+		sestabpervar1 <- biSE["sesaf"]
+		sestabtarvar1 <- biSE["sesbg"]
+		sestabrelvar1 <- biSE["sesch"]
 
-		tstabpervar1 <- ifelse(saf>=0, saf/sesaf, NaN)
-		tstabtarvar1 <- ifelse(sbg>=0, sbg/sesbg, NaN)
-		tstabrelvar1 <- ifelse(sch>=0, sch/sesch, NaN)
+		tstabpervar1 <- ifelse(saf>=0, saf/biSE["sesaf"], NaN)
+		tstabtarvar1 <- ifelse(sbg>=0, sbg/biSE["sesbg"], NaN)
+		tstabrelvar1 <- ifelse(sch>=0, sch/biSE["sesch"], NaN)
 	}
 
 	#########################################Result Matrix
@@ -652,22 +431,22 @@ if (analysis=="manifest") {
 	estimate <- c(saf,sbg,sag,sbf,sch,schs)
 	standardized <- clamp(raf,rbg,rag,rbf,rch,rchs)
 	
-	se <- c(sesaf,sesbg,sesag,sesbf,sesch,seschs)
-	t.value <- c(taf,tbg,tag,tbf,tch,tchs)
+	t.value <- c(taf, tbg, tag, tbf, tch, tchs)
 	pvalues <- (1-pt(abs(t.value), n-1))*2 	# alles Kovarianzen, daher zweiseitig testen!
-	bivariate <- data.frame(type=bilabels_bb, estimate, standardized, se, t.value, p.value=pvalues)
+	bivariate <- data.frame(type=bilabels_bb, estimate, standardized, se=biSE, biSEVAR=biSEVAR, t.value, p.value=pvalues)
+	#bivariate <- data.frame(type=bilabels_bb, estimate, standardized, se=biSE, t.value, p.value=pvalues)
 	
 	if (noCorrection==FALSE) {
 		# erase covariances if one variance component is < 0
-		if (RR.1$varComp[1,2] <= 0) bivariate[c(1,3),3:6] <- NaN
-		if (RR.1$varComp[2,2] <= 0) bivariate[c(2,4),3:6] <- NaN
-		if (RR.2$varComp[1,2] <= 0) bivariate[c(1,4),3:6] <- NaN
-		if (RR.2$varComp[2,2] <= 0) bivariate[c(2,3),3:6] <- NaN
-		if (RR.1$varComp[3,2] <= 0) bivariate[c(5,6),3:6] <- NaN
-		if (RR.2$varComp[3,2] <= 0) bivariate[c(5,6),3:6] <- NaN
+		if (RR.1$varComp[1,2] <= 0) bivariate[c(1,3), c("standardized", "se", "t.value", "p.value")] <- NaN
+		if (RR.1$varComp[2,2] <= 0) bivariate[c(2,4), c("standardized", "se", "t.value", "p.value")] <- NaN
+		if (RR.2$varComp[1,2] <= 0) bivariate[c(1,4), c("standardized", "se", "t.value", "p.value")] <- NaN
+		if (RR.2$varComp[2,2] <= 0) bivariate[c(2,3), c("standardized", "se", "t.value", "p.value")] <- NaN
+		if (RR.1$varComp[3,2] <= 0) bivariate[c(5,6), c("standardized", "se", "t.value", "p.value")] <- NaN
+		if (RR.2$varComp[3,2] <= 0) bivariate[c(5,6), c("standardized", "se", "t.value", "p.value")] <- NaN
 	}	
 	
-	res <- list(univariate = univariate, bivariate = bivariate, latent=FALSE, anal.type="Bivariate analysis of two variables, each measured by one round robin variable")
+	res <- list(univariate = univariate, bivariate = bivariate, latent=FALSE, anal.type="Bivariate analysis of two variables, each measured by one round robin variable", biSEVAR=biSEVAR)
 	attr(res, "group.size") <- n
 	class(res) <- "RRbi"
 	
@@ -680,15 +459,16 @@ if (analysis=="manifest") {
 	stand[is.infinite(stand)] <- NaN
 	
 	# se, t, und p werden aus dem bivariaten Fall uebernommen
-	se <- c(sestabpervar1,sestabtarvar1,sestabrelvar1,NA,(sesag+sesbf)/2,seschs)
-	tvalues<-c(tstabpervar1,tstabtarvar1,tstabrelvar1,NA,stabapcov1/((sesag+sesbf)/2),tchs)
+	se <- c(sestabpervar1, sestabtarvar1, sestabrelvar1, NA, sqrt((biSE["sesag"]^2+biSE["sesbf"]^2)/2), biSE["seschs"])
+	tvalues <- c(tstabpervar1,tstabtarvar1,tstabrelvar1,NA,stabapcov1/sqrt((biSE["sesag"]^2+biSE["sesbf"]^2)/2), tchs)
 	pvalues <- (1-pt(abs(tvalues), n-1))
 	pvalues[4:5] <- pvalues[4:5]*2
 	
-	results <- data.frame(type=unilabels_b, estimate=unstand,standardized=stand,se=se,t.value=tvalues, p.value=pvalues)
+	results <- data.frame(type=unilabels_b, estimate=unstand, standardized=stand, se=se, SEVAR=c(biSEVAR[1:2], biSEVAR["sesch2"], NA, (biSE["sesag"]^2+biSE["sesbf"]^2)/2, biSEVAR[6]), t.value=tvalues, p.value=pvalues)
+	#results <- data.frame(type=unilabels_b, estimate=unstand, standardized=stand, se=se, t.value=tvalues, p.value=pvalues)
 	
 	# erase indices for negative variances
-	results[1:3,][results$estimate[1:3]<0,3:6] <- NaN
+	results[1:3,][results$estimate[1:3]<0, c("standardized", "se", "t.value", "p.value")] <- NaN
 	
 	#-------------------------------
 	# calculate reliability for actor and partner effects
@@ -735,7 +515,7 @@ if (analysis=="manifest") {
 	attr(eff[,grep(localOptions$suffixes[2], colnames(eff), fixed=TRUE)], "reliability") <- rel.p
 	attr(effRel$relationship, "reliability") <- rel.r
 	
-	res <- list(effects = eff, effects.gm=eff.gm, effectsRel=effRel, varComp=results, unstabdycov1=unstabdycov1, unstabper1=unstabper1, unstabtar1=unstabtar1, unstabrel1=unstabrel1, unstable.raw=unstable.raw, latent=TRUE, anal.type="Latent construct analysis of one construct measured by two round robin variables")
+	res <- list(effects = eff, effects.gm=eff.gm, effectsRel=effRel, varComp=results, unstabdycov1=unstabdycov1, unstabper1=unstabper1, unstabtar1=unstabtar1, unstabrel1=unstabrel1, unstable.raw=unstable.raw, latent=TRUE, SEVAR=c(biSEVAR[1:2], biSEVAR["sesch2"], NA, (biSE["sesag"]^2+biSE["sesbf"]^2)/2, biSEVAR[6]), anal.type="Latent construct analysis of one construct measured by two round robin variables")
 	attr(res, "group.size") <- n
 	attr(res, "varname") <- paste(attr(RR.1, "varname"), attr(RR.2, "varname"), sep="/")
 	if ((attr(RR.1, "self") == TRUE) & (attr(RR.2, "self") == TRUE)) {attr(res, "self") <- TRUE} else {attr(res, "self") <- FALSE}
@@ -759,26 +539,18 @@ ifg <- function(g) {
 }
 
 
-checkVar <- function(x, minVar=0) {
-	if (is.null(minVar)) return(FALSE)
-	if (is.na(minVar)) return(FALSE)
-	if (is.null(x)) return(TRUE)
-	if (is.nan(x)) return(TRUE)
-	if (is.na(x)) return(TRUE)
-	if (x < minVar) return(TRUE)
-	return(FALSE)
-}
-
-
 # Wrapper function: depending on parameters, different results are calculated:
+# @param se Either "SOREMO" (= between group significance test) or "LashleyBond" (= advanced significance test)
 #' @export
 #' @importFrom reshape2 melt
 #' @importFrom reshape2 acast
 #' @importFrom plyr ldply
 #' @importFrom plyr laply
-RR <- function(formula, data, na.rm=FALSE, minData = 1, verbose=TRUE, g.id=NULL, index="", exclude.ids="", varname=NA, minVar=localOptions$minVar, ...) {
+RR <- function(formula, data, na.rm=FALSE, minData = 1, verbose=TRUE, g.id=NULL, index="", exclude.ids="", varname=NA, se="LashleyBond", minVar=localOptions$minVar, ...) {
 
 	extra <- list(...)
+	
+	se <- match.arg(se, choices=c("LashleyBond", "SOREMO"))
 
 	# set default
 	analysis <- "manifest"
@@ -799,7 +571,7 @@ RR <- function(formula, data, na.rm=FALSE, minData = 1, verbose=TRUE, g.id=NULL,
 
 	# if a grouping factor is provided: forward to RR.multi
 	if (!is.null(group.id)) {
-		res <- RR.multi(f1, data=data, na.rm=na.rm, verbose=verbose, index=index, minData=minData, exclude.ids=exclude.ids, varname=varname, ...)
+		res <- RR.multi(f1, data=data, na.rm=na.rm, verbose=verbose, index=index, minData=minData, exclude.ids=exclude.ids, varname=varname, se=se, ...)
 		
 		if (!is.null(res$univariate)) {
 			
@@ -845,12 +617,15 @@ RR <- function(formula, data, na.rm=FALSE, minData = 1, verbose=TRUE, g.id=NULL,
 		
 		res$minVar <- minVar
 		for (g in 1:length(res$groups)) res$groups[[g]]$minVar <- minVar
+		res$se <- se
 		
 		return(res)
 		
 	}
 
 
+	# ---------------------------------------------------------------------
+	#  Single group
 
 	# univariater Fall:
 	if (length(lhs)==1) {
@@ -881,14 +656,15 @@ RR <- function(formula, data, na.rm=FALSE, minData = 1, verbose=TRUE, g.id=NULL,
 	
 		lhs1 <- strsplit(lhs[1], "/")[[1]]
 	
-		# manifester vs. latenter Fall
+		# manifester vs. latenter Fall		
 		if (length(lhs1)==1) {
-			
+			# univariat:
 			RRMatrix1 <- long2matrix(formula(paste(lhs[1],"~",actor.id,"*",partner.id,ifg(group.id))), data, verbose=verbose, minData=minData, skip3=TRUE, g.id=g.id, exclude.ids=exclude.ids, ...)[[1]]
 			
 			RRMatrix2 <- long2matrix(formula(paste(lhs[2],"~",actor.id,"*",partner.id,ifg(group.id))), data, verbose=verbose, minData=minData, skip3=TRUE, g.id=g.id, exclude.ids=exclude.ids, ...)[[1]]
 			analysis <- "manifest"
 		} else if (length(lhs1)==2) {
+			# latent
 			lhs2 <- strsplit(lhs[2], "/")[[1]]
 			
 			
@@ -943,7 +719,7 @@ if (is.null(RRMatrix1) & is.null(RRMatrix2) & is.null(RRMatrix3) & is.null(RRMat
 		}
 		
 		res$minVar <- minVar
-		
+		res$se <- se
 		return(res)
 	}
 	
@@ -958,28 +734,33 @@ if (is.null(RRMatrix1) & is.null(RRMatrix2) & is.null(RRMatrix3) & is.null(RRMat
 		}
 		res <- RR.bivariate(RRMatrix1, RRMatrix2, analysis=analysis, na.rm=na.rm, verbose=verbose, index=index, varname=varname)
 		
+		
 		if (!is.null(res$univariate)) {
 			
 			# bivariate case
 			
 			# if variance < minVar: set effects to NA
 			if (!is.na(minVar)) {
+				# Actor variance below minVar? Remove actor effects
 				if (checkVar(res$univariate[[1]]$varComp[1, 3], minVar)) {
-					res$univariate[[1]]$effects[,3][1:nrow(res$univariate[[1]]$effects)] <- NA
-					res$univariate[[1]]$effects.gm[,3][1:nrow(res$univariate[[1]]$effects)] <- NA
+					res$univariate[[1]]$effects[,2] <- NA
+					res$univariate[[1]]$effects.gm[,2] <- NA
 				}
+				# Partner variance below minVar? Remove partner effects
 				if (checkVar(res$univariate[[1]]$varComp[2, 3], minVar)) {
-					res$univariate[[1]]$effects[,4][1:nrow(res$univariate[[1]]$effects)] <- NA
-					res$univariate[[1]]$effects.gm[,4][1:nrow(res$univariate[[1]]$effects)] <- NA
+					res$univariate[[1]]$effects[,3] <- NA
+					res$univariate[[1]]$effects.gm[,3] <- NA
 
 				}
+				# Actor variance below minVar? Remove actor effects
 				if (checkVar(res$univariate[[2]]$varComp[1, 3], minVar)) {
-					res$univariate[[2]]$effects[,3][1:nrow(res$univariate[[1]]$effects)] <- NA
-					res$univariate[[2]]$effects.gm[,3][1:nrow(res$univariate[[1]]$effects)] <- NA
+					res$univariate[[2]]$effects[,2] <- NA
+					res$univariate[[2]]$effects.gm[,2] <- NA
 				}
+				# Partner variance below minVar? Remove partner effects
 				if (checkVar(res$univariate[[2]]$varComp[2, 3], minVar)) {
-					res$univariate[[2]]$effects[,4][1:nrow(res$univariate[[1]]$effects)] <- NA
-					res$univariate[[2]]$effects.gm[,4][1:nrow(res$univariate[[1]]$effects)] <- NA
+					res$univariate[[2]]$effects[,3] <- NA
+					res$univariate[[2]]$effects.gm[,3] <- NA
 
 				}
 			}
@@ -989,18 +770,18 @@ if (is.null(RRMatrix1) & is.null(RRMatrix2) & is.null(RRMatrix3) & is.null(RRMat
 				# if variance < minVar: set effects to NA
 				if (!is.na(minVar)) {
 					if (checkVar(res$varComp[1, 3], minVar)) {
-						res$effects[,3][1:nrow(res$effects)] <- NA
-						res$effects.gm[,3][1:nrow(res$effects)] <- NA
+						res$effects[,2] <- NA
+						res$effects.gm[,2] <- NA
 					}
 					if (checkVar(res$varComp[2, 3], minVar)) {
-						res$effects[,4][1:nrow(res$effects)] <- NA
-						res$effects.gm[,4][1:nrow(res$effects)] <- NA
-
+						res$effects[,3] <- NA
+						res$effects.gm[,3] <- NA
 					}
 				}
 		}
 		
 		res$minVar <- minVar
+		res$se <- se
 		return(res);
 	}
 	
@@ -1043,12 +824,12 @@ if (is.null(RRMatrix1) & is.null(RRMatrix2) & is.null(RRMatrix3) & is.null(RRMat
 		bivariate$standardized <- clamp(bivariate$estimate / denom)
 
 		# erase covariances if one variance component is < 0
-		if (lat1[1] <= 0) bivariate[c(1,3),3:6] <- NaN
-		if (lat1[2] <= 0) bivariate[c(2,4),3:6] <- NaN
-		if (lat2[1] <= 0) bivariate[c(1,4),3:6] <- NaN
-		if (lat2[2] <= 0) bivariate[c(2,3),3:6] <- NaN
-		if (lat1[3] <= 0) bivariate[c(5,6),3:6] <- NaN
-		if (lat2[3] <= 0) bivariate[c(5,6),3:6] <- NaN
+		if (lat1[1] <= 0) bivariate[c(1,3), c("standardized", "se", "t.value", "p.value")] <- NaN
+		if (lat1[2] <= 0) bivariate[c(2,4), c("standardized", "se", "t.value", "p.value")] <- NaN
+		if (lat2[1] <= 0) bivariate[c(1,4), c("standardized", "se", "t.value", "p.value")] <- NaN
+		if (lat2[2] <= 0) bivariate[c(2,3), c("standardized", "se", "t.value", "p.value")] <- NaN
+		if (lat1[3] <= 0) bivariate[c(5,6), c("standardized", "se", "t.value", "p.value")] <- NaN
+		if (lat2[3] <= 0) bivariate[c(5,6), c("standardized", "se", "t.value", "p.value")] <- NaN
 		
 		
 		univariate <- list()
@@ -1084,6 +865,7 @@ if (is.null(RRMatrix1) & is.null(RRMatrix2) & is.null(RRMatrix3) & is.null(RRMat
 			}
 
 		grandres$minVar <- minVar
+		grandres$se <- se
 		return(grandres)		
 	} else {
 		# warning("Error: One of the round robin matrices has to few participants!", call.=FALSE)
@@ -1096,102 +878,73 @@ if (is.null(RRMatrix1) & is.null(RRMatrix2) & is.null(RRMatrix3) & is.null(RRMat
  
 
 
-# weighted variance, inspired by a function from Gavin Simpson on R-Help
-var.wt <- function(x, w, na.rm = FALSE) {
-    if (na.rm) {
-        w <- w[i <- !is.na(x)]
-        x <- x[i]
-    }
-    sum.w <- sum(w)
-    return((sum(w*x^2) * sum.w - sum(w*x)^2) / (sum.w^2 - sum(w^2)))
-}
-
-
-
-
-weighted.t.test <- function(x, w, mu, conf.level = 0.95, alternative="two.sided", na.rm=TRUE) {
-	
-	if(!missing(conf.level) &&
-       (length(conf.level) != 1 || !is.finite(conf.level) ||
-        conf.level < 0 || conf.level > 1))
-        stop("'conf.level' must be a single number between 0 and 1")
-	
-	if (na.rm) { 
-		w <- w[i <- !is.na(x)] 
-		x <- x[i] 
-	}
-	
-	# to achieve consistent behavior in loops, return NA-structure in case of complete missings
-	if (sum(is.na(x)) == length(x)) return(list(estimate=NA, se=NA, conf.int=NA, statistic=NA, df=NA, p.value=NA))
-	
-	# if only one value is present: this is the best estimate, no significance test provided
-	if (sum(!is.na(x)) == 1) {
-		warning("Warning weighted.t.test: only one value provided; this value is returned without test of significance!", call.=FALSE)
-		return(list(estimate=x[which(!is.na(x))], se=NA, conf.int=NA, statistic=NA, df=NA, p.value=NA))
-	}
-	
-	x.w <- weighted.mean(x,w, na.rm=na.rm)
-	var.w <- var.wt(x,w, na.rm=na.rm)
-	df <- length(x)-1
-	t.value <- sqrt(length(x))*((x.w-mu)/sqrt(var.w))
-	se <- sqrt(var.w)/sqrt(length(x))
-	
-	if (alternative == "less") {
-		pval <- pt(t.value, df)
-		cint <- c(-Inf, x.w + se*qt(conf.level, df) )
-    }
-    else if (alternative == "greater") {
-		pval <- pt(t.value, df, lower.tail = FALSE)
-		cint <- c(x.w - se * qt(conf.level, df), Inf)
-    }
-    else {
-		pval <- 2 * pt(-abs(t.value), df)
-		alpha <- 1 - conf.level
-        cint <- x.w + se*qt(1 - alpha/2, df)*c(-1,1)
-    }
-	
-	names(t.value) <- "t"
-	return(list(estimate=x.w, se=se, conf.int=cint, statistic=t.value, df=df, p.value=pval))
-}
-
-
-
-# helper-functions
-posOrNA <- function(x) {
-	return(ifelse(x>=0, x, NA))
-}
-
-
-
 # uni1, uni2: univariate Analysen der beiden Konstrukte (Daten werden zum Standardisieren der bivariaten Koeffizienten gebraucht)
-
-getWTest <- function(RR0, res1, typ="univariate", uni1=NA, uni2=NA, unstable=NA) {
+getWTest <- function(RR0, res1, typ="univariate", uni1=NA, uni2=NA, unstable=NA, se="LashleyBond") {
 	
 	if (is.null(RR0)) return();
 	
 	if (typ=="univariate") {
 		if (length(RR0$univariate)==2) {varComp <- RR0$univariate[[1]]$varComp} else {varComp <- RR0$varComp}
-		varComp$p.value <- NA
-		varComp$estimate <- NA
+		
+		# create empty template for varComp
+		varComp[, -1] <- NA
 
 		for (v in names(table(res1$type))) {
-			w.t <- weighted.t.test(res1$estimate[res1$type == v], res1$group.size[res1$type == v]-1, mu=0)
-	
-			varComp[varComp$type==v,]$estimate <- w.t$estimate
-			varComp[varComp$type==v,]$se <- w.t$se
-			varComp[varComp$type==v,]$t.value <- w.t$statistic
-			varComp[varComp$type==v,]$p.value <- w.t$p.value
+			
+			#------------------------------------
+			#--  Significance test for Variance Components (OLD STYLE)
+			# -- calculate weighted mean and weighted between groups t-test
+			#------------------------------------
+			
+			if (se == "SOREMO") {
+				w.t <- weighted.t.test(res1$estimate[res1$type == v], res1$group.size[res1$type == v]-1, mu=0)
+				varComp[varComp$type==v,]$estimate <- w.t$estimate
+				varComp[varComp$type==v,]$se <- w.t$se
+				varComp[varComp$type==v,]$SEVAR <- w.t$se^2
+				varComp[varComp$type==v,]$t.value <- w.t$statistic
+				varComp[varComp$type==v,]$p.value <- w.t$p.value
+			}
+			
+			#------------------------------------
+			#--  Significance test for Variance Components (LASHLEY-BOND STYLE)
+			#------------------------------------
+			
+			if (se == "LashleyBond") {
+				SEs2 <- res1$SEVAR[res1$type == v]
+				VAR <- res1$estimate[res1$type == v]
+				
+				# compute weights based on n
+				w <- res1$group.size[res1$type == v]-1
+
+				# weighted mean estimate of the SRM parameter				
+				VAR.mean.weighted <- sum(VAR*w) / sum(w)
+				
+				SE.mean.weighted <- sqrt(sum(w^2*SEs2) / (sum(w)^2))
+					
+				t.value <- VAR.mean.weighted / SE.mean.weighted
+								
+				df <- sum(res1$group.size[res1$type == v]-1)
+				# compute two-tailed p-value (p-values for variances are divided by two later)
+ 				p.value <- pt(abs(t.value), df, lower.tail=FALSE)*2
+				
+				varComp[varComp$type==v,]$estimate <- VAR.mean.weighted
+				varComp[varComp$type==v,]$se <- as.vector(SE.mean.weighted)
+				varComp[varComp$type==v,]$SEVAR <- as.vector(SE.mean.weighted)^2
+				varComp[varComp$type==v,]$t.value <- t.value
+				varComp[varComp$type==v,]$p.value <- p.value
+			}
 		}
+
+
 		varComp$p.value[1:4] <- varComp$p.value[1:4] / 2
 		# Varianzen nur einseitig testen (Voreinstellung bei weighted.t.test ist zweiseitig)
-
-		
 		
 		# unstable variance im latent bivariaten Fall wird von aussen in die Funktion gegeben
 		if (!is.na(unstable)) {
 			varComp[4,2] <- unstable
 		}
 
+		rownames(varComp) <- NULL
 
 		#standardized coefficients need special treatment ...
 		varComp[1,3] <- posOrNA(varComp[1,2])/ sum(posOrNA(varComp[1:4,2]), na.rm=TRUE)
@@ -1209,8 +962,8 @@ getWTest <- function(RR0, res1, typ="univariate", uni1=NA, uni2=NA, unstable=NA)
 		# variance below zero: erase all other indices
 		bz <- which(varComp[1:3, 2]<0)
 		if (length(bz)>0) {
-			varComp[bz, 3:6] <- NaN
-			if (varComp[1,2]<0 | varComp[2,2]<0) varComp[5,3:6] <- NaN
+			varComp[bz, c("standardized", "se", "t.value", "p.value")] <- NaN
+			if (varComp[1,2]<0 | varComp[2,2]<0) varComp[5, c("standardized", "se", "t.value", "p.value")] <- NaN
 		}
 		
 		# error variance: set se, t, p to NA (instead of NaN)
@@ -1220,20 +973,54 @@ getWTest <- function(RR0, res1, typ="univariate", uni1=NA, uni2=NA, unstable=NA)
 	}
 	
 	if (typ=="bivariate") {
-		
-		
 		bivariate <- RR0$bivariate
-		bivariate$p.value <- NA
+		bivariate[, -1] <- NA
+		#bivariate$p.value <- NA
 
 		for (v in names(table(res1$type))) {
-			w.t <- weighted.t.test(res1$estimate[res1$type == v], res1$group.size[res1$type == v]-1, mu=0)
-	
-			bivariate[bivariate$type==v,]$estimate <- w.t$estimate
-			bivariate[bivariate$type==v,]$se <- w.t$se
-			bivariate[bivariate$type==v,]$t.value <- w.t$statistic
-			bivariate[bivariate$type==v,]$p.value <- w.t$p.value
-		}
+			#------------------------------------
+			#--  Significance test for Variance Components (OLD STYLE)
+			# -- calculate weighted mean and weighted between groups t-test
+			#------------------------------------
+			
+			if (se == "SOREMO") {
+				w.t <- weighted.t.test(res1$estimate[res1$type == v], res1$group.size[res1$type == v]-1, mu=0)
+				bivariate[bivariate$type==v,]$estimate <- w.t$estimate
+				bivariate[bivariate$type==v,]$se <- w.t$se
+				bivariate[bivariate$type==v,]$biSEVAR <- w.t$se^2
+				bivariate[bivariate$type==v,]$t.value <- w.t$statistic
+				bivariate[bivariate$type==v,]$p.value <- w.t$p.value
+			}
+			
+			#------------------------------------
+			#--  Significance test for Variance Components (LASHLEY-BOND STYLE)
+			#------------------------------------
+			
+			if (se == "LashleyBond") {
+				SEs2 <- res1$biSEVAR[res1$type == v]
+				VAR <- res1$estimate[res1$type == v]
+				
+				# compute weights based on n
+				w <- res1$group.size[res1$type == v]-1
 
+				# weighted mean estimate of the SRM parameter				
+				VAR.mean.weighted <- sum(VAR*w) / sum(w)
+				
+				SE.mean.weighted <- sqrt(sum(w^2*SEs2) / (sum(w)^2))
+					
+				t.value <- VAR.mean.weighted / SE.mean.weighted
+								
+				df <- sum(res1$group.size[res1$type == v]-1)
+ 				p.value <- pt(t.value, df, lower.tail=FALSE)
+				
+				bivariate[bivariate$type==v,]$estimate <- VAR.mean.weighted
+				bivariate[bivariate$type==v,]$se <- as.vector(SE.mean.weighted)
+				bivariate[bivariate$type==v,]$biSEVAR <- as.vector(SE.mean.weighted)^2
+				bivariate[bivariate$type==v,]$t.value <- t.value
+				bivariate[bivariate$type==v,]$p.value <- p.value
+			}			
+		}
+		
 		#standardized coefficients need special treatment ...
 		w <- getOption("warn")
 		options(warn=-1)
@@ -1247,10 +1034,10 @@ getWTest <- function(RR0, res1, typ="univariate", uni1=NA, uni2=NA, unstable=NA)
 		
 		
 		# erase covariances if one variance component is < 0
-		if (uni1[1,2] <= 0) bivariate[c(1,3),3:6] <- NaN
-		if (uni2[1,2] <= 0) bivariate[c(1,4),3:6] <- NaN
-		if (uni1[2,2] <= 0) bivariate[c(2,4),3:6] <- NaN
-		if (uni2[2,2] <= 0) bivariate[c(2,3),3:6] <- NaN
+		if (uni1[1,2] <= 0) bivariate[c(1,3), c("standardized", "se", "t.value", "p.value")] <- NaN
+		if (uni2[1,2] <= 0) bivariate[c(1,4), c("standardized", "se", "t.value", "p.value")] <- NaN
+		if (uni1[2,2] <= 0) bivariate[c(2,4), c("standardized", "se", "t.value", "p.value")] <- NaN
+		if (uni2[2,2] <= 0) bivariate[c(2,3), c("standardized", "se", "t.value", "p.value")] <- NaN
 
 		bivariate[,3] <- clamp(bivariate[,3])
 	
@@ -1261,8 +1048,7 @@ getWTest <- function(RR0, res1, typ="univariate", uni1=NA, uni2=NA, unstable=NA)
 
 
 
-
-RR.multi.uni <- function(formule, data, na.rm=FALSE, verbose=TRUE, index="", minData=1, exclude.ids="", varname=NA, ...) {
+RR.multi.uni <- function(formule, data, na.rm=FALSE, verbose=TRUE, index="", minData=1, exclude.ids="", varname=NA, se="LashleyBond", ...) {
 
 	# this function needs data in long format ...
 	extra <- list(...)
@@ -1285,7 +1071,7 @@ RR.multi.uni <- function(formule, data, na.rm=FALSE, verbose=TRUE, index="", min
 	
 	# n.m stores the group sizes
 	saa <- sbb <- scc <- sccs <- n.m <- c()
-	
+	sesaa2 <- sesbb2 <- sescc2 <- sesab2 <- sesccs2 <- c()	
 	undc1 <- unp1 <- unt1 <- unr1 <- un.raw  <- c()
 	
 	self <- FALSE	# are self ratings present?
@@ -1303,12 +1089,6 @@ RR.multi.uni <- function(formule, data, na.rm=FALSE, verbose=TRUE, index="", min
 		
 		RR0$group.id <- g.id
 
-		# if (RR0$latent==FALSE) {
-# 			RR0$effects.gm$group.id <- g.id
-# 		} else {
-# 			eff.gm <- list(relationship=NA)
-# 		}
-		
 		g.uni[[g]] <- RR0
 		
 		if (RR0$latent==FALSE) {
@@ -1326,6 +1106,7 @@ RR.multi.uni <- function(formule, data, na.rm=FALSE, verbose=TRUE, index="", min
 		n.m <- c(n.m, attr(RR0, "group.size"))
 		
 		u1 <- RR0$varComp
+		u1$SEVAR <- RR0$SEVAR
 		u1$variable <- 1
 
 		u1$group.size <-  attr(RR0, "group.size")
@@ -1334,7 +1115,9 @@ RR.multi.uni <- function(formule, data, na.rm=FALSE, verbose=TRUE, index="", min
 		res <- rbind(res, u1)
 		
 	}
-
+	
+	#stop()
+	
 	# aus der liste die Effekte extrahieren und zusammenfuegen
 	effect <- ldply(g.uni, function(x) {return(x$effects)})
 	effect[,1:2] <- effect[,2:1]
@@ -1371,9 +1154,9 @@ RR.multi.uni <- function(formule, data, na.rm=FALSE, verbose=TRUE, index="", min
 	if (length(effect) == 0) {
 		effect <- data.frame(actor=NA, partner=NA, relationship=NA)
 	}
+	
 	# get weighted variance components
-	varComp <- getWTest(RR1, res, unstable=ifelse(is.null(unstable.raw.m), NULL, unstable.raw.m))
-
+	varComp <- getWTest(RR1, res, unstable=ifelse(is.null(unstable.raw.m), NULL, unstable.raw.m), se=se)
 
 	# calculate reliability for actor and partner effects, and variance of group means
 	group.var <- NA
@@ -1421,38 +1204,40 @@ RR.multi.uni <- function(formule, data, na.rm=FALSE, verbose=TRUE, index="", min
 		# group mean & group variance		
 		group.means <- tapply(data[, all.vars(f1)[1]], data[, group.id], mean, na.rm=TRUE)
 		group.var <- var(group.means) - ((varComp$estimate[1] + varComp$estimate[2] + 2*varComp$estimate[5])/n + (varComp$estimate[3]+varComp$estimate[6])/(n*(n-1)))
-		
-		
+				
 	}	
 	
-	#------------------------------------
-	#--  Variance Components: calculate weighted mean and weighted between groups t-test
-	#------------------------------------
 	
-	anal.type <- paste(RR1$anal.type, " in multiple groups",sep="")
-	
+	if (se == "LashleyBond") {
+		ST <- "(significance test based on Lashley & Bond, 1997, Psychological Methods)"
+	}
+	if (se == "SOREMO") {
+		ST <- "(significance test based on SOREMO; Kenny & LaVoie, 1984)"
+	}
+	anal.type <- paste0(RR1$anal.type, " in multiple groups ", ST)
+
 	if (!is.null(varComp)) {
-	
+
+		#res2 <- list(effects = effect, effectsRel = effectRel, effects.gm = eff.gm, varComp = varComp, groups = g.uni, varComp.groups=res, group.var=group.var, biSEVAR=varComp$se^2, anal.type=anal.type)
 		res2 <- list(effects = effect, effectsRel = effectRel, effects.gm = eff.gm, varComp = varComp, groups = g.uni, varComp.groups=res, group.var=group.var, anal.type=anal.type)
 		class(res2) <- "RRmulti"
 		attr(res2, "varname") <- attr(g.uni[[1]], "varname")
 		attr(res2, "self") <- self
-		
+	
 		# # noch rausfinden, welche Teilnehmer ausgeschlossen wurden
 		# l1 <- long2matrix(formule, data, verbose=FALSE)
 		# attr(res2, "excluded.participants") <- attr(l1, "excluded.participants")
 		# attr(res2, "excluded.groups") <- attr(l1, "excluded.groups")
-		
+	
 		return(res2)
 	} else {return();}
-	
 }
 
 
 
 
-
-RR.multi <- function(formule, data, na.rm=FALSE, verbose=TRUE, index="", minData=1, exclude.ids="", varname=NA, ...) {
+# @param se Either "SOREMO" (= between group significance test) or "LashleyBond" (= advanced significance test)
+RR.multi <- function(formule, data, na.rm=FALSE, verbose=TRUE, index="", minData=1, exclude.ids="", varname=NA, se="LashleyBond", ...) {
 
 	# this function needs data in long format ...
 	extra <- list(...)
@@ -1475,7 +1260,11 @@ RR.multi <- function(formule, data, na.rm=FALSE, verbose=TRUE, index="", minData
 	df <- data[data[,group.id]==data[1,group.id],]
 	mode <- ifelse(length(f3)==2,"bi","uni")
 
-	if (mode=="uni") return(RR.multi.uni(formule, data, na.rm, verbose, index=index, minData=minData, exclude.ids=exclude.ids, varname=varname, ...))
+	if (mode=="uni") {
+		return(RR.multi.uni(formule, data, na.rm, verbose, index=index, minData=minData, exclude.ids=exclude.ids, varname=varname, se=se, ...))
+	}
+
+
 
 	# ... ansonsten bi-mode durchfuehren
 	
@@ -1485,6 +1274,7 @@ RR.multi <- function(formule, data, na.rm=FALSE, verbose=TRUE, index="", minData
 		ex2 <- attr(long2matrix(formula(paste(f3[2], "~", f4)), data, verbose=FALSE, minData=minData), "excluded.participants")
 		ex3 <- Reduce(union, list(ex1, ex2, exclude.ids))
 	} else {
+		# latent analysis
 		ex1a <- attr(long2matrix(formula(paste(strsplit(f3[1], "/", fixed=TRUE)[[1]][1], "~", f4)), data, verbose=FALSE, minData=minData), "excluded.participants")
 		ex1b <- attr(long2matrix(formula(paste(strsplit(f3[1], "/", fixed=TRUE)[[1]][2], "~", f4)), data, verbose=FALSE, minData=minData), "excluded.participants")
 		ex2a <- attr(long2matrix(formula(paste(strsplit(f3[2], "/", fixed=TRUE)[[1]][1], "~", f4)), data, verbose=FALSE, minData=minData), "excluded.participants")
@@ -1492,17 +1282,16 @@ RR.multi <- function(formule, data, na.rm=FALSE, verbose=TRUE, index="", minData
 		ex3 <- Reduce(union, list(ex1a, ex1b, ex2a, ex2b, exclude.ids))
 	}
 	
-	V1 <- RR.multi.uni(formula(paste(f3[1], "~", f4)), data, na.rm, verbose=verbose, index=index, minData=minData, exclude.ids=ex3, bistyle=TRUE)
-	V2 <- RR.multi.uni(formula(paste(f3[2], "~", f4)), data, na.rm, verbose=FALSE, index=index, minData=minData, exclude.ids=ex3)
+	V1 <- RR.multi.uni(formula(paste(f3[1], "~", f4)), data, na.rm, verbose=verbose, index=index, minData=minData, exclude.ids=ex3, bistyle=TRUE, se=se)
+	V2 <- RR.multi.uni(formula(paste(f3[2], "~", f4)), data, na.rm, verbose=FALSE, index=index, minData=minData, exclude.ids=ex3, se=se)
 	V2$varComp.groups$variable <- 2
 		
-	res <- data.frame()
 	res.bi <- data.frame()
 	bi.groups <- list()
 	
 	for (g in names(table(data[,group.id]))) {
 		
-			RR0 <- RR(f1, data=data[data[,group.id] == g,], verbose=FALSE, na.rm=na.rm, minData=minData, exclude.ids=ex3, minVar=NA)
+			RR0 <- RR(f1, data=data[data[,group.id] == g,], verbose=FALSE, na.rm=na.rm, minData=minData, exclude.ids=ex3, minVar=NA, se=se)
 			
 			if (is.null(RR0)) {next;} else
 			{RR1 <- bi.groups[[g]]  <- RR0}
@@ -1512,177 +1301,20 @@ RR.multi <- function(formule, data, na.rm=FALSE, verbose=TRUE, index="", minData
 			}
 		
 	}
-
 	
-	anal.type <- paste(RR1$anal.type, "in multiple groups")
+	if (se == "LashleyBond") {
+		ST <- "(significance test based on Lashley & Bond, 1997, Psychological Methods)"
+	}
+	if (se == "SOREMO") {
+		ST <- "(significance test based on SOREMO; Kenny & LaVoie, 1984)"
+	}
+	anal.type <- paste0(RR1$anal.type, " in multiple groups ", ST)
 	
-	bivariate <- getWTest(RR1, res.bi, typ="bivariate", V1$varComp, V2$varComp)
+	bivariate <- getWTest(RR1, res.bi, typ="bivariate", V1$varComp, V2$varComp, se=se)
 	
-	res <- list(univariate = list(V1, V2), bivariate = bivariate, anal.type=anal.type, groups=bi.groups)
+	res <- list(univariate = list(V1, V2), bivariate = bivariate, SEVAR=bivariate$se^2, anal.type=anal.type, groups=bi.groups)
 	class(res) <- "RRmulti"
 
 	return(res)
-}
-
-
-
-
-
-# Workaround: When @export does not recognize that this is a S3-method, you need the extra @method statement
-#' @method print RRmulti
-#' @export 
-print.RRmulti <- function(x, ...) {
-	print.RR(x, ...)
-}
-
-#' @method print RRuni
-#' @export
-print.RRuni <- function(x, ...) {
-	print.RR(x, ...)
-}
-
-#' @method print RRbi
-#' @export
-print.RRbi <- function(x, ...) {
-	print.RR(x, ...)
-}
-
-# simple wrapper: formats a number in f.2 format
-f2 <- function(x, digits=3, prepoint=0) {
-	if (length(dim(x)) == 2) {
-		apply(x, 2, function(x2) {gsub("0.", ".", sprintf(paste("%",prepoint,".",digits,"f",sep=""), x2) , fixed=TRUE)})
-	} else {
-		gsub("0.", ".", sprintf(paste("%",prepoint,".",digits,"f",sep=""), x) , fixed=TRUE)
-	}
-}
-
-
-# x muss hier direkt auf das univariate-Objekt verweisen
-print.uni <- function(x, ..., measure=NA, digits=3, r.names=NULL, minVar=0) {
-	
-	# print descriptivers for multi group
-	if (length(x$groups) > 1) {
-		groupsizes <- laply(x$groups, function(y) return(attr(y, "group.size")))
-		av.groupsize <- round(mean(groupsizes), 2)
-		
-		 print(paste("Group descriptives: n = ",length(x$groups),"; average group size = ",av.groupsize, "; range: ", min(groupsizes), "-", max(groupsizes)))
-	}
-	
-	uni <- round(x$varComp[,2:ncol(x$varComp)], digits)	
-	
-	if (checkVar(uni[1, 2], minVar)) {uni[5, 2:5] <- NA}
-	if (checkVar(uni[2, 2], minVar)) {uni[5, 2:5] <- NA}
-	if (checkVar(uni[3, 2], minVar)) {uni[6, 2:5] <- NA}
-		
-	if (is.na(measure)) {
-		measure <- localOptions$style
-	} else {
-		measure <- match.arg(measure, c("behavior", "perception", "metaperception"))
-	}
-	
-	if (!is.null(r.names)) {rownames(uni) <- r.names} else {
-		if (measure == "behavior") rownames(uni) <- unilabels_b
-		if (measure == "perception") rownames(uni) <- unilabels_p
-		if (measure == "metaperception") {
-			warning("Warning: the current RR-object only consists of a single variable. Labels for metaperception are only provided when two variables are specified.", call.=FALSE)
-			rownames(uni) <- unilabels_b
-		}
-	}
-	
-	print(uni)
-	
-	
-	# Actor effect reliability
-	if (!is.null(x$effects[,grep(localOptions$suffixes[1], colnames(x$effects), fixed=TRUE)])) print(paste(role[[measure]][1], "effect reliability:",f2(attr(x$effects[,grep(localOptions$suffixes[1], colnames(x$effects), fixed=TRUE)], "reliability"), 3)))
-	
-	# Partner effect reliability
-	if (!is.null(x$effects[,grep(localOptions$suffixes[2], colnames(x$effects), fixed=TRUE)])) print(paste(role[[measure]][2], "effect reliability:",f2(attr(x$effects[,grep(localOptions$suffixes[2], colnames(x$effects), fixed=TRUE)], "reliability"), 3)))
-	
-	# Relationship effect reliability
-	if (!is.null(attr(x$effectsRel$relationship, "reliability"))) print(paste(role[[measure]][3], "effect reliability:",f2(attr(x$effectsRel$relationship, "reliability"), 3)))
-	
-	selfCor(x, measure=measure)
-}
-
-
-
-# Here the default print method for RR-objects gets overwritten, so that 
-# the information in the RR-class is displayed in a convenient way
-print.RR <- function(x, ..., measure1=NA, measure2=NA, digits=3, measure=NULL) {
-	
-	if (is.na(measure1)) {
-		measure1 <- localOptions$style
-	} else {
-		measure1 <- match.arg(measure1, c("behavior", "perception", "metaperception"))
-	}
-	if (is.na(measure2)) {
-		measure2 <- measure1
-	} else {
-		measure2 <- match.arg(measure2, c("behavior", "perception", "metaperception"))
-	}
-	
-	print("Round-Robin object ('RR'), calculated by TripleR")
-	print(x$anal.type)
-	
-	
-	if (!is.null(measure)) {measure1 <- measure}
-	
-	# bivariate case
-	if (length(x$univariate) == 2) {
-		
-		uni <- lapply(x$univariate, function(x) return(x))
-		bi <- round(x$bivariate[,2:ncol(x$bivariate)], digits)
-				
-		# Erase bivariate correlations for variance components < minVar
-		if (checkVar(uni[[1]]$varComp[1, 2], x$minVar)) {bi[c(1,3), 2:5] <- NA}
-		if (checkVar(uni[[1]]$varComp[2, 2], x$minVar)) {bi[c(2,4), 2:5] <- NA}
-		if (checkVar(uni[[1]]$varComp[3, 2], x$minVar)) {bi[c(5,6), 2:5] <- NA}
-		if (checkVar(uni[[2]]$varComp[1, 2], x$minVar)) {bi[c(1,4), 2:5] <- NA}
-		if (checkVar(uni[[2]]$varComp[2, 2], x$minVar)) {bi[c(2,3), 2:5] <- NA}
-		if (checkVar(uni[[2]]$varComp[3, 2], x$minVar)) {bi[c(5,6), 2:5] <- NA}
-		                                     
-		r.names1 <- r.names2 <- NULL
-		if (measure1 == "behavior" & measure2 == "behavior") {
-			rownames(bi) <- bilabels_bb
-		} else
-   		if (measure1 == "behavior" & measure2 == "perception") {
-				rownames(bi) <- bilabels_bp
-		} else
-		if (measure1 == "perception" & measure2 == "behavior") {
-				rownames(bi) <- bilabels_pb
-		} else
-		if (measure1 == "perception" & measure2 == "perception") {
-				rownames(bi) <- bilabels_pp
-		} else
-		if (measure1 == "perception" & measure2 == "metaperception") {
-			r.names1 <- unilabels_b_meta1
-			r.names2 <- unilabels_b_meta2
-			rownames(bi) <- bilabels_meta
-		} else {
-			stop("This combination of measurement labels does not fit.")
-		}
-		print(paste("Univariate analyses for:", attr(uni[[1]], "varname")))
-		print.uni(uni[[1]], measure=measure1, r.names=r.names1, minVar=x$minVar)
-		cat("\n")
-		print(paste("Univariate analyses for:", attr(uni[[2]], "varname")))
-		print.uni(uni[[2]], measure=measure2, r.names=r.names2, minVar=x$minVar)
-		cat("\n")
-		print("Bivariate analyses:")
-		
-		print(bi)
-		
-		if (length(uni[[1]]$groups) != length(uni[[2]]$groups)) {
-			warning(paste("Note: Univariate analyses of both variables are based on different numbers of groups. Bivariate analyses therefore are based on the common groups of both variables (n=",min(length(uni[[1]]$groups), length(uni[[2]]$groups)),")", sep=""), call.=FALSE)
-		}
-		
-	} else
-	
-	# univariate case
-	{
-		print(paste("Univariate analyses for:", attr(x, "varname")))
-		print.uni(x, measure=measure1, minVar=x$minVar)
-	}
-	
-	
 }
 

@@ -16,7 +16,7 @@ The function RR performs Social Relation Model (SRM) analyses for single or mult
 }
 \usage{
 RR(formula, data, na.rm=FALSE, minData=1, verbose=TRUE, g.id=NULL, index="", 
-	exclude.ids="", varname=NA, minVar=localOptions$minVar, ...)
+	exclude.ids="", varname=NA, se="LashleyBond", minVar=localOptions$minVar, ...)
 }
 
 
@@ -30,6 +30,7 @@ RR(formula, data, na.rm=FALSE, minData=1, verbose=TRUE, g.id=NULL, index="",
 \item{index}{set \code{index = 'enhance'} for additionally requesting an index for self enhancement (self rating - perceiver effect - target effect - group mean of self ratings; Kwan, John, Kenny, Bond, & Robins, 2004) along with the actor and partner effects.}
 \item{exclude.ids}{For internal use only; do not set this parameter}
 \item{varname}{The name stem of the effects variables. By default, this is the first variable passed in the formula. In case of latent constructs, however, it might be preferable to set a new name for the latent construct.}
+\item{se}{This defines how significance tests are computed in the multi-group case. Either "LashleyBond" (= recommended significancetest by Lashley & Bond, 1997; default) or "SOREMO" (= between group significance test as implemented in SOREMO). In single groups, always the Lashley-Bond standard errors and significance tests are provided.}
 \item{minVar}{Actor and partners effects are only calculated if the respective relative variance component is greater than minVar. Set minVar to NA if this cleaning should not be performed. For small groups, Kenny (1994) suggests a minimum relative variance of 10\% for the interpretation of SRM effects. In any case, actor/ partner effects and correlations with these variables should not be interpreted if these components have negative variance estimates. minVar defaults to zero; with RR.style this default can be changed for all subsequent analyses.}
 
 \item{...}{Further undocumented or internal arguments passed to the function}
@@ -37,7 +38,8 @@ RR(formula, data, na.rm=FALSE, minData=1, verbose=TRUE, g.id=NULL, index="",
 \details{
 Please note: detailed instructions on how to use the TripleR package are provided in the built in pdf document `How to use TripleR'. You can open this document either by on this link: \url{../doc/TripleR.pdf}, or you can browse all included vignettes by opening the index of the package documentation (scroll down to the very end of this page and click on `Index'; than click on `Overview of user guides and package vignettes'). These help files are only for quick references.
 
-The estimation of the parameters of the Social Relation Model (SRM) is based on formulae provided by Kenny (1994; p. 236-244). For tests of significance of a single group, Triple R computes standard errors by using formulae published by Bond and Lashley (1996) for the case of a univariate SRM analysis. The formulae for the standard errors of the bivariate SRM parameters were kindly provided to us by C.F. Bond in personal communication. If multiple groups are provided, by default a between-group t-test is employed to calculate the significance. If you have very few groups with a considerable size (n>15), even in the multiple group scenario it might be preferable to use the within-group test of significance. You can inspect the within-group test of significance for each of the multiple groups in the return value (see \code{groups.univariate}).
+The estimation of the parameters of the Social Relation Model (SRM) is based on formulae provided by Kenny (1994; p. 236-244). If multiple groups are provided, SRMs are computed within each single group. Variance components then are calculated as the weighted average across groups (weighted with N – 1). Please note that in case of largely varying group sizes a precision weighting based on  inverse-variance weights might be preferable but is not currently implemented in TripleR.
+For tests of significance of a single group, Triple R computes standard errors by using formulae published by Bond and Lashley (1996) for the case of a univariate SRM analysis. The formulae for the standard errors of the bivariate SRM parameters were kindly provided to us by C.F. Bond in personal communication. If multiple groups are provided, by default the standard error is computed as the square root of the weighted mean of the squared group-specific standard errors, as recommended by Lashley and Bond (1997), For \code{se = “SOREMO”} a between-group t-test is employed to calculate the significance which was suggested by Kenny and La Voie (1984) and is used in the software SOREMO. Particularly in case of a small number of groups, the significance test based on Lashley and Bond (1997) gives more accurate results.
 
 The formula to specify the round robin design has following notation:
 \code{DV ~ perceiver.id * target.id | group.id} (group.id is only provided if multiple groups are present). If two variables are used to describe one latent construct, both are connected with a slash on the left hand side: \code{DV1a/DV1b ~ perceiver.id * target.id}. If two variables are used to describe two manifest constructs, both are connected with a \code{+} on the left hand side: \code{DV1+DV2 ~ perceiver.id * target.id}. A latent analysis of two constructs would be notated as following: \code{DV1a/DV1b + DV2a/DV2b ~ perceiver.id * target.id}.
@@ -105,6 +107,8 @@ These settings from RR.style, however, can be overwritten for each \code{print} 
 	\code{print(RRobject, measure1="perception", measure2="behavior")}: prints output for a bivariate analysis of behavior and perception data.
 	
 	\item \code{print(RRobject, measure1="perception", measure2="metaperception")}: is for the special case that a perception and a corresponding metaperception was measured. In this case, additionally the appropriate output labels for bivariate SRM analyses of other- and metaperceptions (reciprocities, assumed reciprocities, meta-accuracies; see Kenny, 1994) are presented.
+	
+	\item \code{print(RRobject, digits=6)}: Provide the number of displayed digits.
 }
 
 
@@ -122,11 +126,15 @@ Please cite this paper if you use TripleR in your research.
 
 Further information on SRM and its application:
 \itemize{  
-\item{Back, M. D., Schmukle, S. C. & Egloff, B. (in press). A closer look at first sight: Social relations lens model analyses of personality and interpersonal attraction at zero acquaintance. \emph{European Journal of Personality}.}
+\item{Back, M. D., Schmukle, S. C. & Egloff, B. (2011). A closer look at first sight: Social relations lens model analyses of personality and interpersonal attraction at zero acquaintance. \emph{European Journal of Personality, 25}, 225-238.}
+
+\item{Bond, C. F., Jr., & Lashley, B. R. (1996). Round-robin analysis of social interaction: Exact and estimated standard errors. \emph{Psychometrika, 61}, 303-311.}
 
 \item{Bonito, J. A., & Kenny, D. A. (2010). The measurement of reliability of social relations components from round-robin designs. \emph{Personal Relationships, 17}, 235 - 251.}
 
 \item{Kenny, D. A. (1994). \emph{Interpersonal perception: A social relations analysis}. New York: Guilford Press.}
+
+\item{Kenny, D. A., & La Voie, L. J. (1984). The social relations model. In L. Berkowitz (Ed.),\emph{ Advances in experimental social psychology} (Vol. 18, pp. 142-182). San Diego, CA: Academic Press.}
 
 \item{Kwan, V. S. Y., John, O. P., Kenny, D. A., Bond, M. H., & Robins, R. W. (2004). Reconceptualizing individual differences in self-enhancement bias: An interpersonal approach. \emph{Psychological Review, 111}, 94–110.}
 
