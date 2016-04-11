@@ -1,6 +1,6 @@
-ccd6e8c42a7717a3032769a4bcfb0189 *DESCRIPTION
+df3e23a619a54b387a325f9c407a49ac *DESCRIPTION
 f7a3ef6bf08b684c8c8e188021a533cd *NAMESPACE
-52a974f32d2a367e38b7f7078377ebab *NEWS
+059d01c96f0b7631225e3a52424bef89 *NEWS
 673b6c6dfbaeea6388ef39963b6cafdd *R/00-Skinning.R
 1387a4d2003d0c5059cc223a48c5e8ec *R/LashleyBond.R
 97c1165d1e68cf2c1f5ba30e5118eda9 *R/RR.r
@@ -25,10 +25,10 @@ aa0b29b0dbbea76fc786c7fee497fa7d *data/multiNarc.tab
 6d2c408d1118e0f1ed52394b04e87650 *inst/CITATION
 057edec5098682afe1dabc628a45cf54 *inst/doc/TripleR.pdf
 7ffba837e496260e47c06d1741d7d4b4 *inst/doc/index.html
-0f82106693d9cd5db27a0e0d49b2b12c *man/RR.Rd
+afa5fd29ba9fef4b69056e21c2087c4c *man/RR.Rd
 96de1308dcec68b6d61171bc3aa5c083 *man/RR.style.Rd
 7de00a20759816092b7ca7ee9b2425ff *man/RR.summary.Rd
-f4485351345d06266bf057e022daf97c *man/TripleR-package.Rd
+a504a6a0de5d3e7bc780ff11a5beb962 *man/TripleR-package.Rd
 ccc253db89b000c58cdc50d4e3e0f4c0 *man/getEffects.Rd
 5ef008352f286ee1d13e07c4fa889bcf *man/long2matrix.Rd
 db2cb3974ab0ff4ad87b6fe40a720f4f *man/matrix2long.Rd
