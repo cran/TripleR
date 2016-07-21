@@ -3,8 +3,8 @@ Package: TripleR
 Type: Package
 Title: Social Relation Model (SRM) Analyses for Single or Multiple
         Groups
-Version: 1.5.1
-Date: 2016-04-05
+Version: 1.5.3
+Date: 2016-07-21
 Author: F. D. Schönbrodt, M. D. Back, S. C. Schmukle
 Maintainer: Felix Schönbrodt <felix.schoenbrodt@psy.lmu.de>
 Depends: ggplot2 (>= 0.9.3)
@@ -23,6 +23,6 @@ License: GPL (>= 2)
 LazyLoad: yes
 RoxygenNote: 5.0.1
 NeedsCompilation: no
-Packaged: 2016-04-11 08:08:45 UTC; Felix
+Packaged: 2016-07-21 13:00:35 UTC; Felix
 Repository: CRAN
-Date/Publication: 2016-04-11 14:45:20
+Date/Publication: 2016-07-21 18:52:31
