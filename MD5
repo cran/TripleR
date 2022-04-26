@@ -1,4 +1,4 @@
-95b94920455d2539bd25a1eb8714fb04 *DESCRIPTION
+328f2bf59a288428088f895682b92284 *DESCRIPTION
 f7a3ef6bf08b684c8c8e188021a533cd *NAMESPACE
 fc137c5057ca01bbcc95bf7b87acc742 *NEWS
 673b6c6dfbaeea6388ef39963b6cafdd *R/00-Skinning.R
@@ -10,10 +10,11 @@ f5f6667b3e7fc9c1886dbb177eb24708 *R/helpers.R
 837deb9062859fda25300fbaea0f454a *R/impute.R
 b0cc630374f30686dbf9402e9a8dfd4b *R/long2matrix.R
 e7c9c67bee37a7848316b91dbbaa4955 *R/parCor.r
-8e200e2125eaf8d6a87c00f1a15b2df9 *R/plots.R
+9dd421edf309da460451132ecda3aca5 *R/plots.R
 1c0d6818219eca0f6e4bc958ff84cd91 *R/print.RR.R
 db2230063ae68c76a715048cd5c2ec62 *R/selfCor.r
 dc38a1598733a73016161d5f503d1393 *R/weighted.t.test.R
+d5f87da854d57607d432dad8053ca420 *build/vignette.rds
 1b0380332f31abd57a1d3bc413739e1a *data/likingLong.tab
 4b2291df98ea369cad6ff5772828686c *data/liking_a.tab
 b52468f02e1c533c93b03d2a88ea76c2 *data/liking_b.tab
@@ -22,13 +23,13 @@ d41d0543ad3a9e4980acca55528d0bde *data/metaliking_b.tab
 97420c7dec051a4750e811347e6ed946 *data/multiGroup.tab
 6da62e2d911cf334b0abea023ba88b0b *data/multiLikingLong.tab
 aa0b29b0dbbea76fc786c7fee497fa7d *data/multiNarc.tab
-6d2c408d1118e0f1ed52394b04e87650 *inst/CITATION
-057edec5098682afe1dabc628a45cf54 *inst/doc/TripleR.pdf
-7ffba837e496260e47c06d1741d7d4b4 *inst/doc/index.html
+c5f2572111b986a5a2c2a263e4b788cf *inst/CITATION
+0e24514640eca63d04d9797ffd9cb693 *inst/doc/TripleR-knitr.pdf
+4acca5f9b12d9f8d045c5cdda3b390fc *inst/doc/TripleR-knitr.pdf.asis
 afa5fd29ba9fef4b69056e21c2087c4c *man/RR.Rd
 96de1308dcec68b6d61171bc3aa5c083 *man/RR.style.Rd
 7de00a20759816092b7ca7ee9b2425ff *man/RR.summary.Rd
-a504a6a0de5d3e7bc780ff11a5beb962 *man/TripleR-package.Rd
+fad2806b483de06b3260f9ffbaa6f60d *man/TripleR-package.Rd
 ccc253db89b000c58cdc50d4e3e0f4c0 *man/getEffects.Rd
 5ef008352f286ee1d13e07c4fa889bcf *man/long2matrix.Rd
 db2cb3974ab0ff4ad87b6fe40a720f4f *man/matrix2long.Rd
@@ -36,3 +37,4 @@ db2cb3974ab0ff4ad87b6fe40a720f4f *man/matrix2long.Rd
 34bbbbc2e3095abb1ae75cb116ba9239 *man/plot.RRuni.Rd
 0cde65728b32208a5ea69d17abb3d717 *man/plot_missings.Rd
 443f053f3f9719209ef621ae976337bf *man/selfCor.Rd
+4acca5f9b12d9f8d045c5cdda3b390fc *vignettes/TripleR-knitr.pdf.asis
